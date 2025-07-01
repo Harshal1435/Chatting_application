@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import User from "../models/user.model.js";
 import Message from "./message.model.js";
+import Call from "./call.model.js";
 const conversationSchema = new mongoose.Schema(
   {
     members: [
@@ -16,6 +17,15 @@ const conversationSchema = new mongoose.Schema(
         default: [],
       },
     ],
+
+    callHistory: [
+  {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: Call,
+    default: [],
+  }
+]
+
   },
   { timestamps: true }
 );

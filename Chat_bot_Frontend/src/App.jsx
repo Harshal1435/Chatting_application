@@ -5,9 +5,12 @@ import Signup from "./components/Signup";
 import Login from "./components/Login";
 import { useAuth } from "./context/AuthProvider";
 import { Toaster } from "react-hot-toast";
-import Logout from "./home/left1/Logout";
 import { Navigate, Route, Routes } from "react-router-dom";
 import useConversation from "./statemanage/useConversation";
+
+// ✅ Import modals globally
+import CallModal from "./components/CallModal";
+import IncomingCallModal from "./components/IncomingCallModal";
 
 function App() {
   const [authUser] = useAuth();
@@ -21,9 +24,8 @@ function App() {
           element={
             authUser ? (
               <div className="flex h-screen bg-slate-900 text-white overflow-hidden">
-               
                 <div className="flex w-full">
-                  {/* Left Panel: Show only if no chat is selected or large screen */}
+                  {/* Left Panel */}
                   <div
                     className={`${
                       selectedConversation
@@ -34,7 +36,7 @@ function App() {
                     <Left />
                   </div>
 
-                  {/* Right Panel: Show only if chat is selected or large screen */}
+                  {/* Right Panel */}
                   <div
                     className={`${
                       selectedConversation
@@ -60,6 +62,11 @@ function App() {
           element={authUser ? <Navigate to="/" /> : <Signup />}
         />
       </Routes>
+
+      {/* ✅ Global Call Modals */}
+      <CallModal />
+      <IncomingCallModal />
+
       <Toaster />
     </>
   );

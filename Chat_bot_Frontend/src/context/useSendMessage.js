@@ -1,23 +1,38 @@
 import React, { useState } from "react";
 import useConversation from "../statemanage/useConversation.js";
 import axios from "axios";
+import { encryptText } from "../utils/cryptoUtils"; // ⬅️ import the encryption utility
+
 const useSendMessage = () => {
   const [loading, setLoading] = useState(false);
   const { messages, setMessage, selectedConversation } = useConversation();
-  const sendMessages = async (message) => {
+
+  const sendMessages = async (text) => {
     setLoading(true);
     try {
+      if (!selectedConversation) return;
+
+      // ⬅️ Encrypt the message
+      const { encryptedData, iv } = await encryptText(text);
+
+      // ⬅️ Send encrypted message and iv
       const res = await axios.post(
         `/api/message/send/${selectedConversation._id}`,
-        { message }
+        {
+          encryptedMessage: encryptedData,
+          iv,
+        }
       );
+
+      // ⬅️ Append to message state
       setMessage([...messages, res.data]);
-      setLoading(false);
     } catch (error) {
-      console.log("Error in send messages", error);
+      console.log("Error in sendMessages", error);
+    } finally {
       setLoading(false);
     }
   };
+
   return { loading, sendMessages };
 };
 

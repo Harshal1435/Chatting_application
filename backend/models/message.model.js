@@ -24,6 +24,11 @@ const messageSchema = new mongoose.Schema(
       type: Boolean,
       default: false, // set to true when receiver opens/reads it
     },
+
+   iv: {
+      type: String, // needed for AES decryption
+      required: true,
+    },
     
   },
   { timestamps: true }
