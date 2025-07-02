@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 
 function Login() {
   const [authUser, setAuthUser] = useAuth();
-
+  const VITE_API_URL = import.meta.env.VITE_API_URL;
   const {
     register,
     handleSubmit,
@@ -21,7 +21,7 @@ function Login() {
     };
 
     axios
-      .post("/api/user/login", userInfo)
+      .post(`${VITE_API_URL}/api/user/login`, userInfo)
       .then((response) => {
         if (response.data) {
           toast.success("Login successful");

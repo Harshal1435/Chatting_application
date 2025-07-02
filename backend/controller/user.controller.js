@@ -1,7 +1,8 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
-import createTokenAndSaveCookie from "../jwt/generateToken.js";
-
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+dotenv.config();
 export const signup = async (req, res) => {
   const { fullname, email, password, confirmPassword } = req.body;
 
@@ -31,11 +32,21 @@ export const signup = async (req, res) => {
     });
 
     await newUser.save();
+    const userId = newUser._id;
+      const token = jwt.sign({ userId}, process.env.JWT_TOKEN, {
+        expiresIn: "10d",
+      });
+      
+      res.cookie("jwt", token, {
+        httpOnly: true, // xss
+        secure: true,
+        sameSite: "strict", // csrf
+      });
 
-    createTokenAndSaveCookie(newUser._id, res);
 
     res.status(201).json({
       message: "User created successfully",
+      token,
       user: {
         _id: newUser._id,
         fullname: newUser.fullname,
@@ -71,12 +82,22 @@ export const login = async (req, res) => {
       return res.status(400).json({ error: "Invalid user credentials" });
     }
 
-    createTokenAndSaveCookie(user._id, res);
+    const userId = newUser._id;
+      const token = jwt.sign({ userId}, process.env.JWT_TOKEN, {
+        expiresIn: "10d",
+      });
+      
+      res.cookie("jwt", token, {
+        httpOnly: true, // xss
+        secure: true,
+        sameSite: "strict", // csrf
+      });
 
     console.log("User logged in successfully :::", user);
 
     res.status(200).json({
       message: "User logged in successfully",
+      token,
       user: {
         _id: user._id,
         fullname: user.fullname,
