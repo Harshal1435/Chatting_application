@@ -46,12 +46,13 @@ export const signup = async (req, res) => {
 
 
     res.status(201).json({
-      token,
+      
       user: {
 
         _id: newUser._id,
         fullname: newUser.fullname,
         email: newUser.email,
+        token: token,
       },
     });
   } catch (error) {
@@ -98,11 +99,12 @@ export const login = async (req, res) => {
 
     res.status(200).json({
       message: "User logged in successfully",
-      token,
+     
       user: {
         _id: user._id,
         fullname: user.fullname,
         email: user.email,
+        token:token,
       },
     });
   } catch (error) {
