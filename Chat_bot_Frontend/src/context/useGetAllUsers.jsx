@@ -10,7 +10,7 @@ function useGetAllUsers() {
     const getUsers = async () => {
       setLoading(true);
       try {
-        const token = Cookies.get("jwt");
+        const token = Cookies.get("jwt")|| localStorage.getItem("ChatApp");
         console.log(token)
       
         const response = await axios.get(`${VITE_API_URL}/api/user/allusers`, {
