@@ -1,4 +1,4 @@
-// ✅ Updated CallContext.jsx
+// ✅ CallContext.jsx — Updated for working frontend signaling
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useSocketContext } from "./SocketContext";
 import { useAuth } from "./AuthProvider";
@@ -26,14 +26,19 @@ export const CallProvider = ({ children }) => {
 
     pc.onicecandidate = (e) => {
       if (e.candidate) {
-        socket.emit("webrtc-ice-candidate", { to: remoteUserId, candidate: e.candidate });
+        socket.emit("webrtc-ice-candidate", {
+          to: remoteUserId,
+          candidate: e.candidate,
+        });
       }
     };
 
     pc.ontrack = (e) => {
-      const stream = e.streams[0];
-      if (stream) {
-        remoteStream.current = stream;
+      if (remoteStream.current) {
+        remoteStream.current.srcObject = e.streams[0];
+      } else {
+        remoteStream.current = new MediaStream();
+        remoteStream.current.srcObject = e.streams[0];
       }
     };
 
@@ -43,17 +48,22 @@ export const CallProvider = ({ children }) => {
   const startCall = async ({ to, type }) => {
     setCallType(type);
     setRemoteUserId(to);
-    localStream.current = await navigator.mediaDevices.getUserMedia({ video: type === "video", audio: true });
-
+    localStream.current = await navigator.mediaDevices.getUserMedia({
+      video: type === "video",
+      audio: true,
+    });
     peerConnection.current = createPeerConnection();
-    localStream.current.getTracks().forEach(track => {
+    localStream.current.getTracks().forEach((track) => {
       peerConnection.current.addTrack(track, localStream.current);
     });
-
     const offer = await peerConnection.current.createOffer();
     await peerConnection.current.setLocalDescription(offer);
-
-    socket.emit("call-user", { from: authUser.user._id, to, offer, callType: type });
+    socket.emit("call-user", {
+      from: authUser.user._id,
+      to,
+      offer,
+      callType: type,
+    });
     setActiveCall(true);
   };
 
@@ -62,18 +72,17 @@ export const CallProvider = ({ children }) => {
     setRemoteUserId(incomingCall.from);
     localStream.current = await navigator.mediaDevices.getUserMedia({
       video: incomingCall.callType === "video",
-      audio: true
+      audio: true,
     });
-
     peerConnection.current = createPeerConnection();
-    localStream.current.getTracks().forEach(track => {
+    localStream.current.getTracks().forEach((track) => {
       peerConnection.current.addTrack(track, localStream.current);
     });
-
-    await peerConnection.current.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
+    await peerConnection.current.setRemoteDescription(
+      new RTCSessionDescription(incomingCall.offer)
+    );
     const answer = await peerConnection.current.createAnswer();
     await peerConnection.current.setLocalDescription(answer);
-
     socket.emit("answer-call", { to: incomingCall.from, answer });
     setIncomingCall(null);
     setActiveCall(true);
@@ -82,30 +91,27 @@ export const CallProvider = ({ children }) => {
   const endCall = () => {
     socket.emit("end-call", { to: remoteUserId });
     peerConnection.current?.close();
-    localStream.current?.getTracks().forEach((t) => t.stop());
+    localStream.current?.getTracks().forEach((track) => track.stop());
     localStream.current = null;
     remoteStream.current = null;
     setActiveCall(false);
-    setIncomingCall(null);
     setCallType(null);
     setRemoteUserId(null);
+    setIncomingCall(null);
   };
 
   useEffect(() => {
     if (!socket) return;
-
     socket.on("incoming-call", setIncomingCall);
-
     socket.on("call-accepted", async ({ answer }) => {
       await peerConnection.current?.setRemoteDescription(new RTCSessionDescription(answer));
     });
-
     socket.on("webrtc-ice-candidate", ({ candidate }) => {
-      peerConnection.current?.addIceCandidate(new RTCIceCandidate(candidate));
+      if (candidate) {
+        peerConnection.current?.addIceCandidate(new RTCIceCandidate(candidate));
+      }
     });
-
     socket.on("call-ended", endCall);
-
     return () => socket.off();
   }, [socket]);
 
@@ -117,6 +123,7 @@ export const CallProvider = ({ children }) => {
         callType,
         activeCall,
         incomingCall,
+        remoteUserId,
         startCall,
         acceptCall,
         endCall,

@@ -1,4 +1,3 @@
-// socket.js
 import { Server } from "socket.io";
 import http from "http";
 import express from "express";
@@ -16,7 +15,7 @@ const io = new Server(server, {
   },
 });
 
-const users = {}; // Store online users
+const users = {}; // Store online users { userId: socketId }
 
 export const getReceiverSocketId = (receiverId) => users[receiverId];
 
@@ -27,7 +26,7 @@ io.on("connection", (socket) => {
   if (userId) {
     users[userId] = socket.id;
     socket.userId = userId;
-    console.log("👤 Online Users:", users);
+    console.log("👤 Online Users:", Object.keys(users));
     io.emit("getOnlineUsers", Object.keys(users));
   }
 
@@ -72,9 +71,9 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ✅ WebRTC Signaling for Call
+  // ✅ WebRTC Call Flow
 
-  // 1. Caller initiates call
+  // Step 1: Caller sends offer
   socket.on("call-user", async ({ from, to, offer, callType }) => {
     const targetSocketId = users[to];
     if (!targetSocketId) return;
@@ -85,7 +84,6 @@ io.on("connection", (socket) => {
       callType,
     });
 
-    // Save call log in DB
     await Call.create({
       caller: from,
       receiver: to,
@@ -95,26 +93,25 @@ io.on("connection", (socket) => {
     });
   });
 
-  // 2. Callee accepts call
+  // Step 2: Receiver accepts
   socket.on("answer-call", async ({ to, answer }) => {
     const targetSocketId = users[to];
     if (!targetSocketId) return;
 
     io.to(targetSocketId).emit("call-accepted", { answer });
 
-    // Update call log
     await Call.findOneAndUpdate(
       { caller: to, receiver: socket.userId, status: "ringing" },
       { status: "accepted", acceptedAt: new Date() }
     );
   });
 
-  // 3. Callee rejects call
+  // Step 3: Receiver rejects
   socket.on("reject-call", async ({ to }) => {
     const targetSocketId = users[to];
-    if (!targetSocketId) return;
-
-    io.to(targetSocketId).emit("call-rejected");
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("call-rejected");
+    }
 
     await Call.findOneAndUpdate(
       { caller: to, receiver: socket.userId, status: "ringing" },
@@ -122,7 +119,7 @@ io.on("connection", (socket) => {
     );
   });
 
-  // 4. End call (by either party)
+  // Step 4: End Call
   socket.on("end-call", async ({ to }) => {
     const targetSocketId = users[to];
     if (targetSocketId) {
@@ -141,7 +138,7 @@ io.on("connection", (socket) => {
     );
   });
 
-  // 5. Exchange ICE candidates
+  // Step 5: ICE Candidate Exchange
   socket.on("webrtc-ice-candidate", ({ to, candidate }) => {
     const targetSocketId = users[to];
     if (targetSocketId && candidate) {
@@ -149,7 +146,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ✅ On disconnect
+  // ✅ Disconnect
   socket.on("disconnect", () => {
     console.log("❌ User disconnected:", socket.id);
     if (socket.userId) {
