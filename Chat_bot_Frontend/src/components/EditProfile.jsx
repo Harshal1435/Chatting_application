@@ -7,11 +7,11 @@ function EditProfile({ onClose }) {
   const [authUser, setAuthUser] = useAuth();
   const [fullname, setFullname] = useState(authUser?.fullname || "");
   const [avatar, setAvatar] = useState(authUser?.avatar || "");
-  const VITE_API_URL = import.meta.env.VITE_API_URL;
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await axios.get(`${VITE_API_URL}/api/user/profile`, {
+        const res = await axios.get("/api/user/profile", {
           withCredentials: true,
         });
         setFullname(res.data.fullname);
@@ -27,7 +27,7 @@ function EditProfile({ onClose }) {
     e.preventDefault();
     try {
       const res = await axios.put(
-        `${VITE_API_URL}/api/user/updateprofile`,
+        "/api/user/updateprofile",
         { fullname, avatar },
         { withCredentials: true }
       );

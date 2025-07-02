@@ -6,11 +6,11 @@ import toast from "react-hot-toast";
 
 function Logout() {
   const [loading, setLoading] = useState(false);
-const VITE_API_URL = import.meta.env.VITE_API_URL;
+
   const handleLogout = async () => {
     setLoading(true);
     try {
-      await axios.post(`${VITE_API_URL}/api/user/logout`);
+      await axios.post("/api/user/logout");
       localStorage.removeItem("ChatApp");
       Cookies.remove("jwt");
       toast.success("Logged out successfully");

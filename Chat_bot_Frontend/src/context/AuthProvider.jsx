@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }) => {
     initialUserState ? JSON.parse(initialUserState) : undefined
   );
 
+     console.log("initialUserState", Cookies.get("jwt") );
   return (
     <AuthContext.Provider value={[authUser, setAuthUser]}>
       {children}

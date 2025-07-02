@@ -6,7 +6,7 @@ import { encryptText } from "../utils/cryptoUtils"; // ⬅️ import the encrypt
 const useSendMessage = () => {
   const [loading, setLoading] = useState(false);
   const { messages, setMessage, selectedConversation } = useConversation();
-const VITE_API_URL = import.meta.env.VITE_API_URL;
+
   const sendMessages = async (text) => {
     setLoading(true);
     try {
@@ -17,7 +17,7 @@ const VITE_API_URL = import.meta.env.VITE_API_URL;
 
       // ⬅️ Send encrypted message and iv
       const res = await axios.post(
-        `${VITE_API_URL}/api/message/send/${selectedConversation._id}`,
+        `/api/message/send/${selectedConversation._id}`,
         {
           encryptedMessage: encryptedData,
           iv,
