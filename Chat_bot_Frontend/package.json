@@ -15,8 +15,6 @@
     "axios": "^1.10.0",
     "crypto-js": "^4.2.0",
     "daisyui": "^5.0.43",
-    "date-fns": "^4.1.0",
-    "dotenv": "^17.0.1",
     "eslint-plugin-react": "^7.37.5",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.517.0",
@@ -27,10 +25,8 @@
     "react-hot-toast": "^2.5.2",
     "react-icons": "^5.5.0",
     "react-router-dom": "^6.30.1",
-    "simple-peer": "^9.11.1",
     "socket.io-client": "^4.8.1",
     "tailwindcss": "^4.1.10",
-    "uuid": "^11.1.0",
     "zustand": "^4.5.7"
   },
   "devDependencies": {
