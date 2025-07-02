@@ -20,7 +20,7 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    const newSocket = io("https://chatting-application-1zq7.onrender.com", {
+    const newSocket = io("http://localhost:5000", {
       withCredentials: true,
       query: {
         userId: authUser.user._id,
