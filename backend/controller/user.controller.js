@@ -94,7 +94,7 @@ export const login = async (req, res) => {
         sameSite: "strict", // csrf
       });
 
-    console.log("User logged in successfully :::", user);
+  
 
     res.status(200).json({
       message: "User logged in successfully",
