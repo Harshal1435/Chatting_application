@@ -10,10 +10,10 @@ import { CallProvider } from "./context/CallContext.jsx"; // ✅ import CallProv
 const user = JSON.parse(localStorage.getItem("ChatApp"))?.user;
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <BrowserRouter>
+<BrowserRouter>
     <AuthProvider>
       <SocketProvider>
-        <CallProvider user={user}>
+        <CallProvider>
           <App />
         </CallProvider>
       </SocketProvider>

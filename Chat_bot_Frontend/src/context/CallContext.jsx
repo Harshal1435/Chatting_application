@@ -1,5 +1,5 @@
-// ✅ CallContext.jsx — Updated for working frontend signaling
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+// src/context/CallContext.jsx
+import React, { createContext, useContext, useRef, useState, useEffect } from "react";
 import { useSocketContext } from "./SocketContext";
 import { useAuth } from "./AuthProvider";
 
@@ -10,123 +10,105 @@ export const CallProvider = ({ children }) => {
   const { socket } = useSocketContext();
   const [authUser] = useAuth();
 
-  const peerConnection = useRef(null);
+  const [callState, setCallState] = useState("idle");
+  const [remoteUser, setRemoteUser] = useState(null);
+  const [roomId, setRoomId] = useState(null);
+  const [peerId, setPeerId] = useState(null);
+
   const localStream = useRef(null);
-  const remoteStream = useRef(null);
+  const remoteStream = useRef(new MediaStream());
 
-  const [incomingCall, setIncomingCall] = useState(null);
-  const [activeCall, setActiveCall] = useState(false);
-  const [callType, setCallType] = useState(null);
-  const [remoteUserId, setRemoteUserId] = useState(null);
-
-  const createPeerConnection = () => {
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
-
-    pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        socket.emit("webrtc-ice-candidate", {
-          to: remoteUserId,
-          candidate: e.candidate,
-        });
-      }
-    };
-
-    pc.ontrack = (e) => {
-      if (remoteStream.current) {
-        remoteStream.current.srcObject = e.streams[0];
-      } else {
-        remoteStream.current = new MediaStream();
-        remoteStream.current.srcObject = e.streams[0];
-      }
-    };
-
-    return pc;
-  };
-
-  const startCall = async ({ to, type }) => {
-    setCallType(type);
-    setRemoteUserId(to);
-    localStream.current = await navigator.mediaDevices.getUserMedia({
+  const initLocalStream = async (type = "video") => {
+    const stream = await navigator.mediaDevices.getUserMedia({
       video: type === "video",
-      audio: true,
+      audio: true
     });
-    peerConnection.current = createPeerConnection();
-    localStream.current.getTracks().forEach((track) => {
-      peerConnection.current.addTrack(track, localStream.current);
-    });
-    const offer = await peerConnection.current.createOffer();
-    await peerConnection.current.setLocalDescription(offer);
-    socket.emit("call-user", {
-      from: authUser.user._id,
-      to,
-      offer,
-      callType: type,
-    });
-    setActiveCall(true);
+    localStream.current = stream;
+    return stream;
   };
 
-  const acceptCall = async () => {
-    setCallType(incomingCall.callType);
-    setRemoteUserId(incomingCall.from);
-    localStream.current = await navigator.mediaDevices.getUserMedia({
-      video: incomingCall.callType === "video",
-      audio: true,
+  const startCall = async ({ targetId, targetChatId, type }) => {
+    const roomId = `${authUser.user._id}-${targetId}-${Date.now()}`;
+    const stream = await initLocalStream(type);
+    setRoomId(roomId);
+    setCallState("calling");
+
+    socket.emit("startCall", {
+      roomId,
+      targetChatId,
+      targetId,
+      user: authUser.user,
+      peerId: socket.id,
+      myMicStatus: true,
+      myCamStatus: type === "video",
     });
-    peerConnection.current = createPeerConnection();
-    localStream.current.getTracks().forEach((track) => {
-      peerConnection.current.addTrack(track, localStream.current);
+  };
+
+  const acceptCall = async ({ roomId, from }) => {
+    setRoomId(roomId);
+    setRemoteUser(from);
+    setCallState("active");
+    const stream = await initLocalStream();
+    socket.emit("acceptCall", {
+      roomId,
+      user: authUser.user,
+      accepterPeerId: socket.id,
+      callerPeerId: from.peerId,
     });
-    await peerConnection.current.setRemoteDescription(
-      new RTCSessionDescription(incomingCall.offer)
-    );
-    const answer = await peerConnection.current.createAnswer();
-    await peerConnection.current.setLocalDescription(answer);
-    socket.emit("answer-call", { to: incomingCall.from, answer });
-    setIncomingCall(null);
-    setActiveCall(true);
+  };
+
+  const declineCall = () => {
+    socket.emit("declineCall", {
+      roomId,
+      user: authUser.user,
+      targetId: remoteUser?._id,
+    });
+    setCallState("idle");
   };
 
   const endCall = () => {
-    socket.emit("end-call", { to: remoteUserId });
-    peerConnection.current?.close();
-    localStream.current?.getTracks().forEach((track) => track.stop());
-    localStream.current = null;
-    remoteStream.current = null;
-    setActiveCall(false);
-    setCallType(null);
-    setRemoteUserId(null);
-    setIncomingCall(null);
+    if (roomId) {
+      socket.emit("endCall", { roomId });
+    }
+    localStream.current?.getTracks().forEach(t => t.stop());
+    setCallState("idle");
+    setRoomId(null);
+    setRemoteUser(null);
   };
 
   useEffect(() => {
     if (!socket) return;
-    socket.on("incoming-call", setIncomingCall);
-    socket.on("call-accepted", async ({ answer }) => {
-      await peerConnection.current?.setRemoteDescription(new RTCSessionDescription(answer));
+
+    socket.on("incomingCall", ({ roomId, caller }) => {
+      setRoomId(roomId);
+      setRemoteUser(caller);
+      setCallState("incoming");
     });
-    socket.on("webrtc-ice-candidate", ({ candidate }) => {
-      if (candidate) {
-        peerConnection.current?.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-    });
-    socket.on("call-ended", endCall);
-    return () => socket.off();
+
+    socket.on("callActive", () => setCallState("active"));
+    socket.on("callDeclined", () => setCallState("idle"));
+    socket.on("callTerminated", () => endCall());
+
+    return () => {
+      socket.off("incomingCall");
+      socket.off("callActive");
+      socket.off("callDeclined");
+      socket.off("callTerminated");
+    };
   }, [socket]);
 
   return (
     <CallContext.Provider
       value={{
-        localStream,
-        remoteStream,
-        callType,
-        activeCall,
-        incomingCall,
-        remoteUserId,
         startCall,
         acceptCall,
+        declineCall,
         endCall,
+        localStream,
+        remoteStream,
+        callState,
+        remoteUser,
+        roomId,
       }}
     >
       {children}
