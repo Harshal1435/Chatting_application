@@ -6,7 +6,7 @@ const SocketContext = createContext();
 
 // Custom hook
 export const useSocketContext = () => useContext(SocketContext);
-
+ const baseurl = import.meta.env.VITE_API_URL || "http://localhost:5000";
 // Provider component
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
@@ -20,7 +20,7 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    const newSocket = io("http://localhost:5000", {
+    const newSocket = io(`${baseurl}`, {
       withCredentials: true,
       query: {
         userId: authUser.user._id,

@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 
 function Signup() {
   const [authUser, setAuthUser] = useAuth();
-
+ const baseurl = import.meta.env.VITE_API_URL || "http://localhost:5000";
   const {
     register,
     handleSubmit,
@@ -31,7 +31,7 @@ function Signup() {
     };
 
     try {
-      const response = await axios.post("/api/user/signup", userInfo);
+      const response = await axios.post(`${baseurl}/api/user/signup`, userInfo);
       if (response.data) {
         toast.success("Signup successful");
         localStorage.setItem("ChatApp", JSON.stringify(response.data));

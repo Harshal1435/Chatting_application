@@ -9,5 +9,6 @@ const createTokenAndSaveCookie = (userId, res) => {
     secure: true,
     sameSite: "strict", // csrf
   });
+  return token;
 };
 export default createTokenAndSaveCookie;
