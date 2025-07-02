@@ -11,7 +11,11 @@ function useGetAllUsers() {
       setLoading(true);
       try {
         const token = localStorage.getItem("ChatApp").token;
-        console.log(token)
+        if (!token) {
+          console.error("No token found in localStorage");
+          setLoading(false);
+          return;
+        }
       
         const response = await axios.get(`${VITE_API_URL}/api/user/allusers`, {
           credentials: "include",
