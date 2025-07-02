@@ -1,10 +1,5 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+// ✅ Updated CallContext.jsx
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useSocketContext } from "./SocketContext";
 import { useAuth } from "./AuthProvider";
 
@@ -17,183 +12,113 @@ export const CallProvider = ({ children }) => {
 
   const peerConnection = useRef(null);
   const localStream = useRef(null);
-  const remoteStream = useRef(new MediaStream());
+  const remoteStream = useRef(null);
 
   const [incomingCall, setIncomingCall] = useState(null);
   const [activeCall, setActiveCall] = useState(false);
-  const [callType, setCallType] = useState(null); // audio or video
-  const [isCaller, setIsCaller] = useState(false);
+  const [callType, setCallType] = useState(null);
   const [remoteUserId, setRemoteUserId] = useState(null);
 
-  // ✅ Create peer connection
   const createPeerConnection = () => {
-    const pc = new RTCPeerConnection();
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("webrtc-ice-candidate", {
-          to: remoteUserId,
-          candidate: event.candidate,
-        });
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        socket.emit("webrtc-ice-candidate", { to: remoteUserId, candidate: e.candidate });
       }
     };
 
-    pc.ontrack = (event) => {
-      event.streams[0].getTracks().forEach((track) => {
-        remoteStream.current.addTrack(track);
-      });
+    pc.ontrack = (e) => {
+      const stream = e.streams[0];
+      if (stream) {
+        remoteStream.current = stream;
+      }
     };
 
     return pc;
   };
 
-  // ✅ End Call
-  const endCall = () => {
-    socket.emit("end-call", { to: remoteUserId });
-
-    peerConnection.current?.close();
-    peerConnection.current = null;
-
-    localStream.current?.getTracks().forEach((track) => track.stop());
-    localStream.current = null;
-
-    remoteStream.current = new MediaStream();
-
-    setIncomingCall(null);
-    setRemoteUserId(null);
-    setCallType(null);
-    setIsCaller(false);
-    setActiveCall(false);
-  };
-
-  // ✅ Start Call (Caller)
-  const startCall = async ({ to, type = "audio" }) => {
-    setIsCaller(true);
+  const startCall = async ({ to, type }) => {
     setCallType(type);
     setRemoteUserId(to);
-
-    localStream.current = await navigator.mediaDevices.getUserMedia({
-      video: type === "video",
-      audio: true,
-    });
+    localStream.current = await navigator.mediaDevices.getUserMedia({ video: type === "video", audio: true });
 
     peerConnection.current = createPeerConnection();
-    localStream.current.getTracks().forEach((track) =>
-      peerConnection.current.addTrack(track, localStream.current)
-    );
+    localStream.current.getTracks().forEach(track => {
+      peerConnection.current.addTrack(track, localStream.current);
+    });
 
     const offer = await peerConnection.current.createOffer();
     await peerConnection.current.setLocalDescription(offer);
 
-    socket.emit("call-user", {
-      from: authUser.user._id,
-      to,
-      offer,
-      callType: type,
-    });
-
+    socket.emit("call-user", { from: authUser.user._id, to, offer, callType: type });
     setActiveCall(true);
   };
 
-  // ✅ Accept Call (Receiver)
   const acceptCall = async () => {
-    setIsCaller(false);
     setCallType(incomingCall.callType);
     setRemoteUserId(incomingCall.from);
-
     localStream.current = await navigator.mediaDevices.getUserMedia({
       video: incomingCall.callType === "video",
-      audio: true,
+      audio: true
     });
 
     peerConnection.current = createPeerConnection();
-    localStream.current.getTracks().forEach((track) =>
-      peerConnection.current.addTrack(track, localStream.current)
-    );
+    localStream.current.getTracks().forEach(track => {
+      peerConnection.current.addTrack(track, localStream.current);
+    });
 
-    await peerConnection.current.setRemoteDescription(
-      new RTCSessionDescription(incomingCall.offer)
-    );
-
+    await peerConnection.current.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
     const answer = await peerConnection.current.createAnswer();
     await peerConnection.current.setLocalDescription(answer);
 
-    socket.emit("answer-call", {
-      to: incomingCall.from,
-      answer,
-    });
-
+    socket.emit("answer-call", { to: incomingCall.from, answer });
     setIncomingCall(null);
     setActiveCall(true);
   };
 
-  // ✅ Reject Call
-  const rejectCall = () => {
-    if (incomingCall) {
-      socket.emit("reject-call", { to: incomingCall.from });
-      setIncomingCall(null);
-    }
+  const endCall = () => {
+    socket.emit("end-call", { to: remoteUserId });
+    peerConnection.current?.close();
+    localStream.current?.getTracks().forEach((t) => t.stop());
+    localStream.current = null;
+    remoteStream.current = null;
+    setActiveCall(false);
+    setIncomingCall(null);
+    setCallType(null);
+    setRemoteUserId(null);
   };
 
-  // ✅ Incoming socket listeners
   useEffect(() => {
-    if (!socket || !authUser?.user?._id) return;
+    if (!socket) return;
 
-    socket.on("incoming-call", ({ from, offer, callType }) => {
-      setIncomingCall({ from, offer, callType });
-    });
+    socket.on("incoming-call", setIncomingCall);
 
     socket.on("call-accepted", async ({ answer }) => {
-      if (peerConnection.current) {
-        await peerConnection.current.setRemoteDescription(
-          new RTCSessionDescription(answer)
-        );
-      }
-    });
-
-    socket.on("call-rejected", () => {
-      alert("Call was rejected");
-      endCall();
-    });
-
-    socket.on("call-ended", () => {
-      alert("Call ended");
-      endCall();
+      await peerConnection.current?.setRemoteDescription(new RTCSessionDescription(answer));
     });
 
     socket.on("webrtc-ice-candidate", ({ candidate }) => {
-      if (peerConnection.current && candidate) {
-        peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
-      }
+      peerConnection.current?.addIceCandidate(new RTCIceCandidate(candidate));
     });
 
-    return () => {
-      socket.off("incoming-call");
-      socket.off("call-accepted");
-      socket.off("call-rejected");
-      socket.off("call-ended");
-      socket.off("webrtc-ice-candidate");
-    };
-  }, [socket, authUser]);
+    socket.on("call-ended", endCall);
+
+    return () => socket.off();
+  }, [socket]);
 
   return (
     <CallContext.Provider
       value={{
-        // streams
         localStream,
         remoteStream,
-
-        // call data
-        incomingCall,
-        remoteUserId,
-        isCaller,
         callType,
         activeCall,
-
-        // actions
+        incomingCall,
         startCall,
         acceptCall,
-        rejectCall,
         endCall,
       }}
     >

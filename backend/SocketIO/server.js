@@ -1,9 +1,9 @@
+// socket.js
 import { Server } from "socket.io";
 import http from "http";
 import express from "express";
 import Message from "../models/message.model.js";
 import Call from "../models/call.model.js";
-import Conversation from "../models/conversation.model.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -18,11 +18,8 @@ const io = new Server(server, {
 
 const users = {}; // Store online users
 
-export const getReceiverSocketId = (receiverId) => {
-  return users[receiverId];
-};
+export const getReceiverSocketId = (receiverId) => users[receiverId];
 
-// ✅ Main Socket.IO logic
 io.on("connection", (socket) => {
   console.log("✅ User connected:", socket.id);
 
@@ -34,14 +31,13 @@ io.on("connection", (socket) => {
     io.emit("getOnlineUsers", Object.keys(users));
   }
 
-  // ✅ Handle sending messages
+  // ✅ Send Encrypted Message
   socket.on("send-message", async ({ messageData }) => {
     const { senderId, receiverId, encryptedMessage, iv } = messageData;
-    if (!senderId || !receiverId || !encryptedMessage || !iv) {
-      return console.warn("❌ Missing message data");
-    }
+    if (!senderId || !receiverId || !encryptedMessage || !iv) return;
 
     const isDelivered = Boolean(users[receiverId]);
+
     const newMessage = await Message.create({
       senderId,
       receiverId,
@@ -61,7 +57,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ✅ Handle message seen
+  // ✅ Mark message as seen
   socket.on("mark-seen", async ({ messageId, senderId }) => {
     if (!messageId || !senderId) return;
     const updatedMessage = await Message.findByIdAndUpdate(
@@ -69,15 +65,16 @@ io.on("connection", (socket) => {
       { seen: true },
       { new: true }
     );
+
     const senderSocketId = users[senderId];
     if (senderSocketId) {
       io.to(senderSocketId).emit("message-seen", updatedMessage);
     }
   });
 
-  // ✅ WebRTC Call Handling
+  // ✅ WebRTC Signaling for Call
 
-  // 1. Start a call (send offer)
+  // 1. Caller initiates call
   socket.on("call-user", async ({ from, to, offer, callType }) => {
     const targetSocketId = users[to];
     if (!targetSocketId) return;
@@ -88,7 +85,7 @@ io.on("connection", (socket) => {
       callType,
     });
 
-    // Optional: create call log in DB
+    // Save call log in DB
     await Call.create({
       caller: from,
       receiver: to,
@@ -98,40 +95,39 @@ io.on("connection", (socket) => {
     });
   });
 
-  // 2. Accept a call (send answer)
+  // 2. Callee accepts call
   socket.on("answer-call", async ({ to, answer }) => {
     const targetSocketId = users[to];
     if (!targetSocketId) return;
 
     io.to(targetSocketId).emit("call-accepted", { answer });
 
-    // Update call log status
+    // Update call log
     await Call.findOneAndUpdate(
       { caller: to, receiver: socket.userId, status: "ringing" },
       { status: "accepted", acceptedAt: new Date() }
     );
   });
 
-  // 3. Reject call
+  // 3. Callee rejects call
   socket.on("reject-call", async ({ to }) => {
     const targetSocketId = users[to];
     if (!targetSocketId) return;
 
     io.to(targetSocketId).emit("call-rejected");
 
-    // Update call log
     await Call.findOneAndUpdate(
       { caller: to, receiver: socket.userId, status: "ringing" },
       { status: "rejected", endedAt: new Date() }
     );
   });
 
-  // 4. End call (by either user)
+  // 4. End call (by either party)
   socket.on("end-call", async ({ to }) => {
     const targetSocketId = users[to];
-    if (!targetSocketId) return;
-
-    io.to(targetSocketId).emit("call-ended");
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("call-ended");
+    }
 
     await Call.findOneAndUpdate(
       {
@@ -145,7 +141,15 @@ io.on("connection", (socket) => {
     );
   });
 
-  // ✅ Handle disconnection
+  // 5. Exchange ICE candidates
+  socket.on("webrtc-ice-candidate", ({ to, candidate }) => {
+    const targetSocketId = users[to];
+    if (targetSocketId && candidate) {
+      io.to(targetSocketId).emit("webrtc-ice-candidate", { candidate });
+    }
+  });
+
+  // ✅ On disconnect
   socket.on("disconnect", () => {
     console.log("❌ User disconnected:", socket.id);
     if (socket.userId) {

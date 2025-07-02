@@ -1,77 +1,47 @@
+// ✅ CallModal.jsx
 import React, { useEffect, useRef } from "react";
 import { useCallContext } from "../context/CallContext";
 
-const CallModal = () => {
-  const {
-    activeCall,
-    callType,
-    localStream,
-    remoteStream,
-    endCall,
-  } = useCallContext();
-
-  const localRef = useRef(null);
-  const remoteRef = useRef(null);
+export default function CallModal() {
+  const { activeCall, callType, localStream, remoteStream, endCall } = useCallContext();
+  const localRef = useRef();
+  const remoteRef = useRef();
 
   useEffect(() => {
-    console.log("🎥 CallModal Mounted");
-
-    if (localRef.current && localStream.current instanceof MediaStream) {
+    if (localRef.current && localStream.current) {
       localRef.current.srcObject = localStream.current;
-      console.log("✅ Local stream set");
     }
-
-    if (remoteRef.current && remoteStream.current instanceof MediaStream) {
+    if (remoteRef.current && remoteStream.current) {
       remoteRef.current.srcObject = remoteStream.current;
-      console.log("✅ Remote stream set");
     }
   }, [localStream.current, remoteStream.current]);
 
   if (!activeCall) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex flex-col justify-center items-center z-50 text-white">
-      <h2 className="text-2xl font-bold mb-4">{callType} Call</h2>
-
-      <div className="flex gap-6">
-        <div className="text-center">
-          <p className="text-sm mb-1">You</p>
-          {callType === "video" ? (
-            <video
-              ref={localRef}
-              autoPlay
-              muted
-              playsInline
-              className="w-64 h-48 bg-black rounded-xl"
-            />
-          ) : (
-            <audio ref={localRef} autoPlay muted />
-          )}
-        </div>
-
-        <div className="text-center">
-          <p className="text-sm mb-1">Remote</p>
-          {callType === "video" ? (
-            <video
-              ref={remoteRef}
-              autoPlay
-              playsInline
-              className="w-64 h-48 bg-black rounded-xl"
-            />
-          ) : (
-            <audio ref={remoteRef} autoPlay />
-          )}
-        </div>
+    <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex flex-col items-center justify-center">
+      <h2 className="text-white text-2xl mb-4">{callType.toUpperCase()} Call</h2>
+      <div className="flex flex-col gap-4">
+        {callType === "video" && (
+          <>
+            <video ref={remoteRef} autoPlay playsInline className="w-[90vw] h-[60vh] bg-gray-800" />
+            <video ref={localRef} autoPlay muted playsInline className="w-40 h-32 absolute bottom-6 right-6 border border-white shadow-xl" />
+          </>
+        )}
+        {callType === "audio" && (
+          <>
+            <audio ref={remoteRef} autoPlay className="hidden" />
+            <audio ref={localRef} autoPlay muted className="hidden" />
+            <p className="text-white text-lg">Audio Call In Progress...</p>
+          </>
+        )}
+        <button
+          onClick={endCall}
+          className="mt-6 px-6 py-2 bg-red-600 text-white rounded-lg shadow-md"
+        >
+          End Call
+        </button>
       </div>
-
-      <button
-        onClick={endCall}
-        className="mt-6 px-4 py-2 bg-red-600 rounded-lg"
-      >
-        End Call
-      </button>
     </div>
   );
-};
-
-export default CallModal;
+}

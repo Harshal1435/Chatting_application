@@ -8,16 +8,25 @@ import { Toaster } from "react-hot-toast";
 import { Navigate, Route, Routes } from "react-router-dom";
 import useConversation from "./statemanage/useConversation";
 
-// ✅ Import modals globally
+// ✅ Import modals and call screen
 import CallModal from "./components/CallModal";
 import IncomingCallModal from "./components/IncomingCallModal";
+import CallScreen from "./components/CallScreen";
+import { useCallContext } from "./context/CallContext";
 
 function App() {
   const [authUser] = useAuth();
   const { selectedConversation } = useConversation();
+  const { activeCall } = useCallContext(); // ✅ get activeCall flag
 
   return (
     <>
+      {activeCall && (
+        <div className="fixed inset-0 z-50 bg-black">
+          <CallScreen />
+        </div>
+      )}
+
       <Routes>
         <Route
           path="/"
@@ -66,7 +75,6 @@ function App() {
       {/* ✅ Global Call Modals */}
       <CallModal />
       <IncomingCallModal />
-
       <Toaster />
     </>
   );
