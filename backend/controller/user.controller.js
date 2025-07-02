@@ -1,8 +1,8 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
+
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-import cookieParser from "cookie-parser";
 dotenv.config();
 export const signup = async (req, res) => {
   const { fullname, email, password, confirmPassword } = req.body;
@@ -83,7 +83,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ error: "Invalid user credentials" });
     }
 
-    const userId = newUser._id;
+       const userId = user._id;
       const token = jwt.sign({ userId}, process.env.JWT_TOKEN, {
         expiresIn: "10d",
       });
@@ -98,7 +98,6 @@ export const login = async (req, res) => {
 
     res.status(200).json({
       message: "User logged in successfully",
-      token,
       user: {
         _id: user._id,
         fullname: user.fullname,
