@@ -23,8 +23,6 @@ const activeCalls = {}; // Track active calls
 export const getReceiverSocketId = (receiverId) => {
   return users[receiverId];
 };
- // Track active calls with more structure
-const CALL_TIMEOUT = 30000; // 30 seconds call timeout
 
 io.on("connection", (socket) => {
   console.log("✅ User connected:", socket.id);
@@ -36,6 +34,8 @@ io.on("connection", (socket) => {
     console.log("👤 Online Users:", users);
     io.emit("getOnlineUsers", Object.keys(users));
   }
+
+
   // ✅ Handle sending messages
   socket.on("send-message", async ({ messageData }) => {
     const { senderId, receiverId, encryptedMessage, iv } = messageData;
@@ -77,184 +77,125 @@ io.on("connection", (socket) => {
     }
   });
 
- 
   // ✅ Enhanced WebRTC Call Handling
 
-  // 1. Initiate a call with better validation
-  socket.on("call-user", async ({ from, to, offer, callType }) => {
-    try {
-      // Validate input
-      if (!from || !to || !offer || !['audio', 'video'].includes(callType)) {
-        throw new Error('Invalid call parameters');
-      }
-
-      // Check if receiver is already in a call
-      if (Object.values(activeCalls).some(call => (call.receiverId === to || call.senderId === to) && ['ringing', 'ongoing'].includes(call.status))) {
-        throw new Error('Receiver is already in a call');
-      }
-
-      const receiverSocketId = users[to];
-      if (!receiverSocketId) {
-        throw new Error('Receiver is offline');
-      }
-
-      const callId = uuidv4();
-      const callData = {
-        callId,
-        senderId: from,
-        receiverId: to,
-        callType,
-        status: "ringing",
-        startTime: new Date(),
-        socketIds: {
-          caller: socket.id,
-          receiver: receiverSocketId
-        }
-      };
-
-      activeCalls[callId] = callData;
-
-      // Set call timeout
-      const timeoutId = setTimeout(() => {
-        if (activeCalls[callId]?.status === 'ringing') {
-          endCall(callId, 'Call timed out');
-        }
-      }, CALL_TIMEOUT);
-
-      activeCalls[callId].timeoutId = timeoutId;
-
-      await Call.create({
-        callId,
-        caller: from,
-        receiver: to,
-        callType,
-        status: "ringing",
-        startedAt: new Date(),
-      });
-
-      io.to(receiverSocketId).emit("incoming-call", {
-        from,
-        offer,
-        callType,
-        callId
-      });
-
-      socket.emit("call-initiated", { callId });
-    } catch (error) {
-      console.error('Call initiation error:', error.message);
-      socket.emit("call-failed", { message: error.message });
+  // 1. Initiate a call
+  socket.on("initiate-call", async ({ senderId, receiverId, callType }) => {
+    const receiverSocketId = users[receiverId];
+    if (!receiverSocketId) {
+      socket.emit("call-failed", { message: "Receiver is offline" });
+      return;
     }
+
+    const callId = uuidv4();
+    activeCalls[callId] = {
+      senderId,
+      receiverId,
+      callType,
+      status: "ringing",
+      startTime: new Date()
+    };
+
+    // Create call log in DB
+    await Call.create({
+      callId,
+      caller: senderId,
+      receiver: receiverId,
+      callType,
+      status: "ringing",
+      startedAt: new Date(),
+    });
+
+    // Notify receiver
+    io.to(receiverSocketId).emit("incoming-call", {
+      callId,
+      senderId,
+      callType
+    });
+
+    // Confirm to caller
+    socket.emit("call-initiated", { callId });
   });
 
-  // Helper function to end calls
-  const endCall = async (callId, reason = 'Call ended') => {
+  // 2. Accept call
+  socket.on("accept-call", async ({ callId }) => {
     const call = activeCalls[callId];
     if (!call) return;
 
-    // Clear timeout if exists
-    if (call.timeoutId) {
-      clearTimeout(call.timeoutId);
-    }
-
-    // Notify both parties
-    if (call.socketIds.caller && users[call.senderId] === call.socketIds.caller) {
-      io.to(call.socketIds.caller).emit("call-ended", { callId, reason });
-    }
-    if (call.socketIds.receiver && users[call.receiverId] === call.socketIds.receiver) {
-      io.to(call.socketIds.receiver).emit("call-ended", { callId, reason });
-    }
+    const callerSocketId = users[call.senderId];
+    if (!callerSocketId) return;
 
     // Update call status
+    call.status = "ongoing";
     await Call.findOneAndUpdate(
       { callId },
-      { 
-        status: "ended",
-        endedAt: new Date(),
-        duration: Math.floor((new Date() - call.startTime) / 1000)
-      }
+      { status: "accepted", acceptedAt: new Date() }
+    );
+
+    // Notify caller
+    io.to(callerSocketId).emit("call-accepted", { callId });
+  });
+
+  // 3. Reject call
+  socket.on("reject-call", async ({ callId }) => {
+    const call = activeCalls[callId];
+    if (!call) return;
+
+    const callerSocketId = users[call.senderId];
+    if (callerSocketId) {
+      io.to(callerSocketId).emit("call-rejected", { callId });
+    }
+
+    // Update call log
+    await Call.findOneAndUpdate(
+      { callId },
+      { status: "rejected", endedAt: new Date() }
     );
 
     delete activeCalls[callId];
-  };
-
-  // 2. Accept call with validation
-  socket.on("answer-call", async ({ to, answer, callId }) => {
-    try {
-      const call = activeCalls[callId];
-      if (!call || call.status !== 'ringing') {
-        throw new Error('Invalid call state');
-      }
-
-      call.status = 'ongoing';
-      if (call.timeoutId) {
-        clearTimeout(call.timeoutId);
-      }
-
-      await Call.findOneAndUpdate(
-        { callId },
-        { status: "ongoing" }
-      );
-
-      const callerSocketId = users[to];
-      if (callerSocketId) {
-        io.to(callerSocketId).emit("call-accepted", { answer, callId });
-      }
-    } catch (error) {
-      console.error('Call accept error:', error.message);
-      socket.emit("call-error", { message: error.message });
-    }
   });
 
-  // 3. Reject call with cleanup
-  socket.on("reject-call", async ({ to, callId }) => {
-    try {
-      await endCall(callId, 'Call rejected');
-    } catch (error) {
-      console.error('Call rejection error:', error);
-    }
-  });
-
-  // 4. End call handler
+  // 4. End call
   socket.on("end-call", async ({ callId }) => {
-    try {
-      await endCall(callId, 'Call ended by user');
-    } catch (error) {
-      console.error('Call end error:', error);
+    const call = activeCalls[callId];
+    if (!call) return;
+
+    const otherUserId = socket.userId === call.senderId ? call.receiverId : call.senderId;
+    const otherUserSocketId = users[otherUserId];
+
+    if (otherUserSocketId) {
+      io.to(otherUserSocketId).emit("call-ended", { callId });
+    }
+
+    // Update call log
+    await Call.findOneAndUpdate(
+      { callId },
+      { status: "ended", endedAt: new Date(), duration: new Date() - call.startTime }
+    );
+
+    delete activeCalls[callId];
+  });
+
+  // 5. WebRTC Signaling
+  socket.on("webrtc-signal", ({ callId, signal, targetUserId }) => {
+    const targetSocketId = users[targetUserId];
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("webrtc-signal", { callId, signal });
     }
   });
 
-  // 5. WebRTC Signaling with validation
-  socket.on("webrtc-ice-candidate", ({ to, candidate, callId }) => {
-    try {
-      const call = activeCalls[callId];
-      if (!call || !['ringing', 'ongoing'].includes(call.status)) {
-        throw new Error('Invalid call state for ICE candidate');
-      }
-
-      const targetSocketId = users[to];
-      if (targetSocketId) {
-        io.to(targetSocketId).emit("webrtc-ice-candidate", { 
-          candidate,
-          callId 
-        });
-      }
-    } catch (error) {
-      console.error('ICE candidate error:', error.message);
+  // 6. ICE Candidates exchange
+  socket.on("ice-candidate", ({ callId, candidate, targetUserId }) => {
+    const targetSocketId = users[targetUserId];
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("ice-candidate", { callId, candidate });
     }
   });
 
-  // Handle disconnection cleanup
-  socket.on("disconnect", () => {
+  // ✅ Disconnect handler
+
+   socket.on("disconnect", () => {
     console.log("❌ User disconnected:", socket.id);
-    
-    // End all active calls for this user
-    Object.entries(activeCalls).forEach(([callId, call]) => {
-      if (call.socketIds.caller === socket.id || 
-          call.socketIds.receiver === socket.id) {
-        endCall(callId, 'User disconnected');
-      }
-    });
-
     if (socket.userId) {
       delete users[socket.userId];
       io.emit("getOnlineUsers", Object.keys(users));
@@ -263,3 +204,6 @@ io.on("connection", (socket) => {
 });
 
 export { app, io, server };
+
+
+
