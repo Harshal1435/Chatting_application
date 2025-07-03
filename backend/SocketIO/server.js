@@ -35,7 +35,6 @@ io.on("connection", (socket) => {
     io.emit("getOnlineUsers", Object.keys(users));
   }
 
-
   // ✅ Handle sending messages
   socket.on("send-message", async ({ messageData }) => {
     const { senderId, receiverId, encryptedMessage, iv } = messageData;
@@ -80,8 +79,8 @@ io.on("connection", (socket) => {
   // ✅ Enhanced WebRTC Call Handling
 
   // 1. Initiate a call
-  socket.on("initiate-call", async ({ senderId, receiverId, callType }) => {
-    const receiverSocketId = users[receiverId];
+  socket.on("call-user", async ({ from, to, offer, callType }) => {
+    const receiverSocketId = users[to];
     if (!receiverSocketId) {
       socket.emit("call-failed", { message: "Receiver is offline" });
       return;
@@ -89,106 +88,60 @@ io.on("connection", (socket) => {
 
     const callId = uuidv4();
     activeCalls[callId] = {
-      senderId,
-      receiverId,
+      senderId: from,
+      receiverId: to,
       callType,
       status: "ringing",
-      startTime: new Date()
+      startTime: new Date(),
     };
 
-    // Create call log in DB
     await Call.create({
       callId,
-      caller: senderId,
-      receiver: receiverId,
+      caller: from,
+      receiver: to,
       callType,
       status: "ringing",
       startedAt: new Date(),
     });
 
-    // Notify receiver
     io.to(receiverSocketId).emit("incoming-call", {
-      callId,
-      senderId,
-      callType
+      from,
+      offer,
+      callType,
     });
 
-    // Confirm to caller
     socket.emit("call-initiated", { callId });
   });
 
   // 2. Accept call
-  socket.on("accept-call", async ({ callId }) => {
-    const call = activeCalls[callId];
-    if (!call) return;
-
-    const callerSocketId = users[call.senderId];
-    if (!callerSocketId) return;
-
-    // Update call status
-    call.status = "ongoing";
-    await Call.findOneAndUpdate(
-      { callId },
-      { status: "accepted", acceptedAt: new Date() }
-    );
-
-    // Notify caller
-    io.to(callerSocketId).emit("call-accepted", { callId });
+  socket.on("answer-call", async ({ to, answer }) => {
+    const callerSocketId = users[to];
+    if (callerSocketId) {
+      io.to(callerSocketId).emit("call-accepted", { answer });
+    }
   });
 
   // 3. Reject call
-  socket.on("reject-call", async ({ callId }) => {
-    const call = activeCalls[callId];
-    if (!call) return;
-
-    const callerSocketId = users[call.senderId];
+  socket.on("reject-call", async ({ to }) => {
+    const callerSocketId = users[to];
     if (callerSocketId) {
-      io.to(callerSocketId).emit("call-rejected", { callId });
+      io.to(callerSocketId).emit("call-rejected");
     }
-
-    // Update call log
-    await Call.findOneAndUpdate(
-      { callId },
-      { status: "rejected", endedAt: new Date() }
-    );
-
-    delete activeCalls[callId];
   });
 
   // 4. End call
-  socket.on("end-call", async ({ callId }) => {
-    const call = activeCalls[callId];
-    if (!call) return;
-
-    const otherUserId = socket.userId === call.senderId ? call.receiverId : call.senderId;
-    const otherUserSocketId = users[otherUserId];
-
-    if (otherUserSocketId) {
-      io.to(otherUserSocketId).emit("call-ended", { callId });
+  socket.on("end-call", async ({ to }) => {
+    const receiverSocketId = users[to];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("call-ended");
     }
-
-    // Update call log
-    await Call.findOneAndUpdate(
-      { callId },
-      { status: "ended", endedAt: new Date(), duration: new Date() - call.startTime }
-    );
-
-    delete activeCalls[callId];
   });
 
   // 5. WebRTC Signaling
-  socket.on("webrtc-signal", ({ callId, signal, targetUserId }) => {
-    const targetSocketId = users[targetUserId];
+  socket.on("webrtc-ice-candidate", ({ to, candidate }) => {
+    const targetSocketId = users[to];
     if (targetSocketId) {
-      io.to(targetSocketId).emit("webrtc-signal", { callId, signal });
-    }
-  });
-
-  // 6. ICE Candidates exchange
-  socket.on("ice-candidate", ({ callId, candidate, targetUserId }) => {
-    const targetSocketId = users[targetUserId];
-    if (targetSocketId) {
-      io.to(targetSocketId).emit("ice-candidate", { callId, candidate });
+      io.to(targetSocketId).emit("webrtc-ice-candidate", { candidate });
     }
   });
 
@@ -199,27 +152,7 @@ io.on("connection", (socket) => {
       delete users[socket.userId];
       io.emit("getOnlineUsers", Object.keys(users));
     }
-
-    // Clean up active calls for this user
-    Object.keys(activeCalls).forEach(callId => {
-      const call = activeCalls[callId];
-      if (call.senderId === socket.userId || call.receiverId === socket.userId) {
-        delete activeCalls[callId];
-        Call.findOneAndUpdate({ callId }, { status: "ended", endedAt: new Date() });
-      }
-    });
-  });
-
-   socket.on("disconnect", () => {
-    console.log("❌ User disconnected:", socket.id);
-    if (socket.userId) {
-      delete users[socket.userId];
-      io.emit("getOnlineUsers", Object.keys(users));
-    }
   });
 });
 
 export { app, io, server };
-
-
-

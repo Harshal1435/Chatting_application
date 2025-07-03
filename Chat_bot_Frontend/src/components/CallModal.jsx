@@ -116,7 +116,7 @@ const CallModal = () => {
       {/* Video/Audio containers */}
       <div className="flex-1 w-full flex flex-col md:flex-row items-center justify-center gap-4">
         {/* Remote stream */}
-        <div className="relative w-full max-w-2xl h-64 md:h-96  rounded-xl overflow-hidden">
+        <div className="relative w-full max-w-2xl h-64 md:h-96 bg-gray-800 rounded-xl overflow-hidden">
           {callType === "video" ? (
             <video
               ref={remoteRef}
