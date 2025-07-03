@@ -89,10 +89,7 @@ io.on("connection", (socket) => {
       }
 
       // Check if receiver is already in a call
-      if (Object.values(activeCalls).some(call => 
-        (call.receiverId === to || call.senderId === to) && 
-        ['ringing', 'ongoing'].includes(call.status)
-      ) {
+      if (Object.values(activeCalls).some(call => (call.receiverId === to || call.senderId === to) && ['ringing', 'ongoing'].includes(call.status))) {
         throw new Error('Receiver is already in a call');
       }
 
