@@ -80,7 +80,7 @@ io.on("connection", (socket) => {
   // ✅ Enhanced WebRTC Call Handling
 
   // 1. Initiate a call
-  socket.on("initiate-call", async ({ callerId, receiverId, callType }) => {
+  socket.on("initiate-call", async ({ senderId, receiverId, callType }) => {
     const receiverSocketId = users[receiverId];
     if (!receiverSocketId) {
       socket.emit("call-failed", { message: "Receiver is offline" });
@@ -89,7 +89,7 @@ io.on("connection", (socket) => {
 
     const callId = uuidv4();
     activeCalls[callId] = {
-      callerId,
+      senderId,
       receiverId,
       callType,
       status: "ringing",
@@ -99,7 +99,7 @@ io.on("connection", (socket) => {
     // Create call log in DB
     await Call.create({
       callId,
-      caller: callerId,
+      caller: senderId,
       receiver: receiverId,
       callType,
       status: "ringing",
@@ -109,7 +109,7 @@ io.on("connection", (socket) => {
     // Notify receiver
     io.to(receiverSocketId).emit("incoming-call", {
       callId,
-      callerId,
+      senderId,
       callType
     });
 
@@ -122,7 +122,7 @@ io.on("connection", (socket) => {
     const call = activeCalls[callId];
     if (!call) return;
 
-    const callerSocketId = users[call.callerId];
+    const callerSocketId = users[call.senderId];
     if (!callerSocketId) return;
 
     // Update call status
@@ -141,7 +141,7 @@ io.on("connection", (socket) => {
     const call = activeCalls[callId];
     if (!call) return;
 
-    const callerSocketId = users[call.callerId];
+    const callerSocketId = users[call.senderId];
     if (callerSocketId) {
       io.to(callerSocketId).emit("call-rejected", { callId });
     }
@@ -160,7 +160,7 @@ io.on("connection", (socket) => {
     const call = activeCalls[callId];
     if (!call) return;
 
-    const otherUserId = socket.userId === call.callerId ? call.receiverId : call.callerId;
+    const otherUserId = socket.userId === call.senderId ? call.receiverId : call.senderId;
     const otherUserSocketId = users[otherUserId];
 
     if (otherUserSocketId) {
@@ -203,7 +203,7 @@ io.on("connection", (socket) => {
     // Clean up active calls for this user
     Object.keys(activeCalls).forEach(callId => {
       const call = activeCalls[callId];
-      if (call.callerId === socket.userId || call.receiverId === socket.userId) {
+      if (call.senderId === socket.userId || call.receiverId === socket.userId) {
         delete activeCalls[callId];
         Call.findOneAndUpdate({ callId }, { status: "ended", endedAt: new Date() });
       }
