@@ -35,7 +35,47 @@ io.on("connection", (socket) => {
     io.emit("getOnlineUsers", Object.keys(users));
   }
 
-  // ... [keep your existing message handling code] ...
+
+  // ✅ Handle sending messages
+  socket.on("send-message", async ({ messageData }) => {
+    const { senderId, receiverId, encryptedMessage, iv } = messageData;
+    if (!senderId || !receiverId || !encryptedMessage || !iv) {
+      return console.warn("❌ Missing message data");
+    }
+
+    const isDelivered = Boolean(users[receiverId]);
+    const newMessage = await Message.create({
+      senderId,
+      receiverId,
+      message: encryptedMessage,
+      iv,
+      delivered: isDelivered,
+    });
+
+    const receiverSocketId = users[receiverId];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("receive-message", newMessage);
+    }
+
+    const senderSocketId = users[senderId];
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("message-sent", newMessage);
+    }
+  });
+
+  // ✅ Handle message seen
+  socket.on("mark-seen", async ({ messageId, senderId }) => {
+    if (!messageId || !senderId) return;
+    const updatedMessage = await Message.findByIdAndUpdate(
+      messageId,
+      { seen: true },
+      { new: true }
+    );
+    const senderSocketId = users[senderId];
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("message-seen", updatedMessage);
+    }
+  });
 
   // ✅ Enhanced WebRTC Call Handling
 
@@ -152,7 +192,34 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ... [keep your existing disconnect handler] ...
+  // ✅ Disconnect handler
+  socket.on("disconnect", () => {
+    console.log("❌ User disconnected:", socket.id);
+    if (socket.userId) {
+      delete users[socket.userId];
+      io.emit("getOnlineUsers", Object.keys(users));
+    }
+
+    // Clean up active calls for this user
+    Object.keys(activeCalls).forEach(callId => {
+      const call = activeCalls[callId];
+      if (call.callerId === socket.userId || call.receiverId === socket.userId) {
+        delete activeCalls[callId];
+        Call.findOneAndUpdate({ callId }, { status: "ended", endedAt: new Date() });
+      }
+    });
+  });
+
+   socket.on("disconnect", () => {
+    console.log("❌ User disconnected:", socket.id);
+    if (socket.userId) {
+      delete users[socket.userId];
+      io.emit("getOnlineUsers", Object.keys(users));
+    }
+  });
 });
 
 export { app, io, server };
+
+
+
