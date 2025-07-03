@@ -15,11 +15,11 @@ const IncomingCallModal = () => {
     return () => clearInterval(interval);
   }, []);
 
-  if(incomingCall ) {
-    console.log("Incoming call:", incomingCall);
-  } else {
-    console.log("No incoming call");
-  }
+  // if(incomingCall ) {
+  //   console.log("Incoming call:", incomingCall);
+  // } else {
+  //   console.log("No incoming call");
+  // }
 
 
   if (!incomingCall) return null;

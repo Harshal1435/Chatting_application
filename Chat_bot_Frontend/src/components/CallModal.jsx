@@ -10,6 +10,7 @@ const CallModal = () => {
     callType,
     localStream,
     remoteStream,
+    peerConnection,
     endCall,
     isCaller,
     callDuration,
@@ -19,15 +20,16 @@ const CallModal = () => {
     remoteUserId,
     toggleScreenShare,
     isScreenSharing,
+    isVideoOn,
+    isMuted
   } = useCallContext();
 
   const localRef = useRef(null);
   const remoteRef = useRef(null);
-  const [isVideoOn, setIsVideoOn] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
   const [timer, setTimer] = useState("00:00");
   const [authUser] = useAuth();
   const [isScreenShareLoading, setIsScreenShareLoading] = useState(false);
+  const [connectionState, setConnectionState] = useState('');
 
   // Format call duration
   useEffect(() => {
@@ -36,22 +38,44 @@ const CallModal = () => {
     setTimer(`${minutes}:${seconds}`);
   }, [callDuration]);
 
+  // Monitor connection state
+  useEffect(() => {
+    if (!peerConnection.current) return;
+
+    const handleStateChange = () => {
+      setConnectionState(peerConnection.current.connectionState);
+      console.log('Connection state:', peerConnection.current.connectionState);
+    };
+
+    peerConnection.current.addEventListener('connectionstatechange', handleStateChange);
+    return () => {
+      peerConnection.current?.removeEventListener('connectionstatechange', handleStateChange);
+    };
+  }, [peerConnection.current]);
+
   // Handle stream changes
   useEffect(() => {
-    const setupStreams = () => {
-      if (localRef.current && localStream.current) {
-        localRef.current.srcObject = localStream.current;
-      }
-      if (remoteRef.current && remoteStream.current) {
-        remoteRef.current.srcObject = remoteStream.current;
+    const updateStreams = () => {
+      try {
+        // Local stream
+        if (localRef.current && localStream.current) {
+          localRef.current.srcObject = localStream.current;
+        }
+
+        // Remote stream
+        if (remoteRef.current && remoteStream.current) {
+          remoteRef.current.srcObject = remoteStream.current;
+        }
+      } catch (error) {
+        console.error('Error updating streams:', error);
       }
     };
 
-    setupStreams();
+    updateStreams();
 
-    // Handle track additions to remote stream
+    // Handle track additions
     const handleTrackAdded = (event) => {
-      if (remoteRef.current) {
+      if (remoteRef.current && event.streams && event.streams[0]) {
         remoteRef.current.srcObject = event.streams[0];
       }
     };
@@ -79,24 +103,17 @@ const CallModal = () => {
     }
   };
 
-  // Toggle video with state sync
-  const handleToggleVideo = () => {
-    const newState = !isVideoOn;
-    toggleVideo(newState);
-    setIsVideoOn(newState);
-  };
-
-  // Toggle mute with state sync
-  const handleToggleMute = () => {
-    const newState = !isMuted;
-    toggleMute(newState);
-    setIsMuted(newState);
-  };
-
   if (!activeCall) return null;
 
   return (
     <div className="fixed inset-0 bg-gray-900 flex flex-col justify-center items-center z-50 text-white p-4">
+      {/* Debug info (can be removed in production) */}
+      <div className="absolute top-0 left-0 p-2 bg-black bg-opacity-50 text-xs">
+        <div>Connection: {connectionState}</div>
+        <div>Local tracks: {localStream.current?.getTracks().length || 0}</div>
+        <div>Remote tracks: {remoteStream.current?.getTracks().length || 0}</div>
+      </div>
+
       {/* Call header */}
       <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
         <div className="flex items-center space-x-2">
@@ -109,7 +126,9 @@ const CallModal = () => {
           <span className="text-gray-300">{timer}</span>
         </div>
         <div className="text-gray-300">
-          {isCaller ? 'Calling...' : `Incoming from ${remoteUserId}`}
+          {callStatus === 'ringing' 
+            ? (isCaller ? 'Calling...' : `Incoming from ${remoteUserId}`)
+            : `Connected with ${remoteUserId}`}
         </div>
       </div>
 
@@ -118,12 +137,25 @@ const CallModal = () => {
         {/* Remote stream */}
         <div className="relative w-full max-w-2xl h-64 md:h-96 bg-gray-800 rounded-xl overflow-hidden">
           {callType === "video" ? (
-            <video
-              ref={remoteRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
+            <>
+              <video
+                ref={remoteRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover"
+                onError={(e) => console.error('Remote video error:', e)}
+              />
+              {(!remoteStream.current || remoteStream.current.getVideoTracks().length === 0) && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800">
+                  <div className="w-32 h-32 bg-indigo-600 rounded-full flex items-center justify-center mb-4">
+                    <span className="text-4xl">
+                      {remoteUserId?.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-xl">{remoteUserId}</p>
+                </div>
+              )}
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center h-full">
               <div className="w-32 h-32 bg-indigo-600 rounded-full flex items-center justify-center mb-4">
@@ -139,13 +171,23 @@ const CallModal = () => {
         {/* Local stream */}
         <div className="absolute bottom-24 right-4 w-32 h-48 md:w-40 md:h-60 bg-gray-800 rounded-lg overflow-hidden border-2 border-white shadow-lg">
           {callType === "video" ? (
-            <video
-              ref={localRef}
-              autoPlay
-              muted
-              playsInline
-              className="w-full h-full object-cover"
-            />
+            <>
+              <video
+                ref={localRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+                onError={(e) => console.error('Local video error:', e)}
+              />
+              {(!localStream.current || localStream.current.getVideoTracks().length === 0) && (
+                <div className="absolute inset-0 flex items-center justify-center bg-indigo-700">
+                  <span className="text-2xl">
+                    {authUser?.user?.name?.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+            </>
           ) : (
             <div className="flex items-center justify-center h-full bg-indigo-700">
               <span className="text-2xl">
@@ -160,7 +202,7 @@ const CallModal = () => {
       <div className="absolute bottom-8 left-0 right-0 flex justify-center space-x-6">
         {/* Mute button */}
         <button
-          onClick={handleToggleMute}
+          onClick={() => toggleMute(!isMuted)}
           className={`p-3 rounded-full ${isMuted ? 'bg-red-600' : 'bg-gray-700'} hover:bg-gray-600 transition`}
           aria-label={isMuted ? "Unmute" : "Mute"}
         >
@@ -170,7 +212,7 @@ const CallModal = () => {
         {/* Video toggle (only for video calls) */}
         {callType === "video" && (
           <button
-            onClick={handleToggleVideo}
+            onClick={() => toggleVideo(!isVideoOn)}
             className={`p-3 rounded-full ${!isVideoOn ? 'bg-red-600' : 'bg-gray-700'} hover:bg-gray-600 transition`}
             aria-label={isVideoOn ? "Turn off video" : "Turn on video"}
           >
