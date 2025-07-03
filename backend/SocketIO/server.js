@@ -4,26 +4,26 @@ import express from "express";
 import Message from "../models/message.model.js";
 import Call from "../models/call.model.js";
 import Conversation from "../models/conversation.model.js";
+import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-   origin: ["http://localhost:5173", "https://chatting-application-1.netlify.app"],
-
+    origin: ["http://localhost:5173", "https://chatting-application-1.netlify.app"],
     methods: ["GET", "POST"],
     credentials: true,
   },
 });
 
 const users = {}; // Store online users
+const activeCalls = {}; // Track active calls
 
 export const getReceiverSocketId = (receiverId) => {
   return users[receiverId];
 };
 
-// ✅ Main Socket.IO logic
 io.on("connection", (socket) => {
   console.log("✅ User connected:", socket.id);
 
@@ -35,125 +35,124 @@ io.on("connection", (socket) => {
     io.emit("getOnlineUsers", Object.keys(users));
   }
 
-  // ✅ Handle sending messages
-  socket.on("send-message", async ({ messageData }) => {
-    const { senderId, receiverId, encryptedMessage, iv } = messageData;
-    if (!senderId || !receiverId || !encryptedMessage || !iv) {
-      return console.warn("❌ Missing message data");
-    }
+  // ... [keep your existing message handling code] ...
 
-    const isDelivered = Boolean(users[receiverId]);
-    const newMessage = await Message.create({
-      senderId,
-      receiverId,
-      message: encryptedMessage,
-      iv,
-      delivered: isDelivered,
-    });
+  // ✅ Enhanced WebRTC Call Handling
 
+  // 1. Initiate a call
+  socket.on("initiate-call", async ({ callerId, receiverId, callType }) => {
     const receiverSocketId = users[receiverId];
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("receive-message", newMessage);
+    if (!receiverSocketId) {
+      socket.emit("call-failed", { message: "Receiver is offline" });
+      return;
     }
 
-    const senderSocketId = users[senderId];
-    if (senderSocketId) {
-      io.to(senderSocketId).emit("message-sent", newMessage);
-    }
-  });
-
-  // ✅ Handle message seen
-  socket.on("mark-seen", async ({ messageId, senderId }) => {
-    if (!messageId || !senderId) return;
-    const updatedMessage = await Message.findByIdAndUpdate(
-      messageId,
-      { seen: true },
-      { new: true }
-    );
-    const senderSocketId = users[senderId];
-    if (senderSocketId) {
-      io.to(senderSocketId).emit("message-seen", updatedMessage);
-    }
-  });
-
-  // ✅ WebRTC Call Handling
-
-  // 1. Start a call (send offer)
-  socket.on("call-user", async ({ from, to, offer, callType }) => {
-    const targetSocketId = users[to];
-    if (!targetSocketId) return;
-
-    io.to(targetSocketId).emit("incoming-call", {
-      from,
-      offer,
+    const callId = uuidv4();
+    activeCalls[callId] = {
+      callerId,
+      receiverId,
       callType,
-    });
+      status: "ringing",
+      startTime: new Date()
+    };
 
-    // Optional: create call log in DB
+    // Create call log in DB
     await Call.create({
-      caller: from,
-      receiver: to,
+      callId,
+      caller: callerId,
+      receiver: receiverId,
       callType,
       status: "ringing",
       startedAt: new Date(),
     });
+
+    // Notify receiver
+    io.to(receiverSocketId).emit("incoming-call", {
+      callId,
+      callerId,
+      callType
+    });
+
+    // Confirm to caller
+    socket.emit("call-initiated", { callId });
   });
 
-  // 2. Accept a call (send answer)
-  socket.on("answer-call", async ({ to, answer }) => {
-    const targetSocketId = users[to];
-    if (!targetSocketId) return;
+  // 2. Accept call
+  socket.on("accept-call", async ({ callId }) => {
+    const call = activeCalls[callId];
+    if (!call) return;
 
-    io.to(targetSocketId).emit("call-accepted", { answer });
+    const callerSocketId = users[call.callerId];
+    if (!callerSocketId) return;
 
-    // Update call log status
+    // Update call status
+    call.status = "ongoing";
     await Call.findOneAndUpdate(
-      { caller: to, receiver: socket.userId, status: "ringing" },
+      { callId },
       { status: "accepted", acceptedAt: new Date() }
     );
+
+    // Notify caller
+    io.to(callerSocketId).emit("call-accepted", { callId });
   });
 
   // 3. Reject call
-  socket.on("reject-call", async ({ to }) => {
-    const targetSocketId = users[to];
-    if (!targetSocketId) return;
+  socket.on("reject-call", async ({ callId }) => {
+    const call = activeCalls[callId];
+    if (!call) return;
 
-    io.to(targetSocketId).emit("call-rejected");
+    const callerSocketId = users[call.callerId];
+    if (callerSocketId) {
+      io.to(callerSocketId).emit("call-rejected", { callId });
+    }
 
     // Update call log
     await Call.findOneAndUpdate(
-      { caller: to, receiver: socket.userId, status: "ringing" },
+      { callId },
       { status: "rejected", endedAt: new Date() }
     );
+
+    delete activeCalls[callId];
   });
 
-  // 4. End call (by either user)
-  socket.on("end-call", async ({ to }) => {
-    const targetSocketId = users[to];
-    if (!targetSocketId) return;
+  // 4. End call
+  socket.on("end-call", async ({ callId }) => {
+    const call = activeCalls[callId];
+    if (!call) return;
 
-    io.to(targetSocketId).emit("call-ended");
+    const otherUserId = socket.userId === call.callerId ? call.receiverId : call.callerId;
+    const otherUserSocketId = users[otherUserId];
 
+    if (otherUserSocketId) {
+      io.to(otherUserSocketId).emit("call-ended", { callId });
+    }
+
+    // Update call log
     await Call.findOneAndUpdate(
-      {
-        $or: [
-          { caller: socket.userId, receiver: to },
-          { caller: to, receiver: socket.userId },
-        ],
-        status: { $in: ["accepted", "ringing"] },
-      },
-      { status: "ended", endedAt: new Date() }
+      { callId },
+      { status: "ended", endedAt: new Date(), duration: new Date() - call.startTime }
     );
+
+    delete activeCalls[callId];
   });
 
-  // ✅ Handle disconnection
-  socket.on("disconnect", () => {
-    console.log("❌ User disconnected:", socket.id);
-    if (socket.userId) {
-      delete users[socket.userId];
-      io.emit("getOnlineUsers", Object.keys(users));
+  // 5. WebRTC Signaling
+  socket.on("webrtc-signal", ({ callId, signal, targetUserId }) => {
+    const targetSocketId = users[targetUserId];
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("webrtc-signal", { callId, signal });
     }
   });
+
+  // 6. ICE Candidates exchange
+  socket.on("ice-candidate", ({ callId, candidate, targetUserId }) => {
+    const targetSocketId = users[targetUserId];
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("ice-candidate", { callId, candidate });
+    }
+  });
+
+  // ... [keep your existing disconnect handler] ...
 });
 
 export { app, io, server };

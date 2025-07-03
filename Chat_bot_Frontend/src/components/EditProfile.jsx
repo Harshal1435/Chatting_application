@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { IoMdClose } from "react-icons/io";
 import { useAuth } from "../context/AuthProvider";
-
+import Cookies from "js-cookie";
 function EditProfile({ onClose }) {
   const [authUser, setAuthUser] = useAuth();
   const [fullname, setFullname] = useState(authUser?.fullname || "");
@@ -10,9 +10,15 @@ function EditProfile({ onClose }) {
   const baseurl = import.meta.env.VITE_API_URL || "http://localhost:5000";
   useEffect(() => {
     const fetchProfile = async () => {
+ const token = Cookies.get("jwt") || localStorage.getItem("ChatApp")?.user?.token;
+     
+        const newtoken = authUser?.user?.token || token;
       try {
         const res = await axios.get(`${baseurl}/api/user/profile`, {
           withCredentials: true,
+            headers: {
+            Authorization: `Bearer ${newtoken}`,
+          },
         });
         setFullname(res.data.fullname);
         setAvatar(res.data.avatar);
@@ -29,7 +35,12 @@ function EditProfile({ onClose }) {
       const res = await axios.put(
         `${baseurl}/api/user/updateprofile`,
         { fullname, avatar },
-        { withCredentials: true }
+        { withCredentials: true ,
+
+          headers: {
+            Authorization: `Bearer ${authUser?.user?.token}`,
+            },
+        }
       );
       setAuthUser(res.data);
       onClose();

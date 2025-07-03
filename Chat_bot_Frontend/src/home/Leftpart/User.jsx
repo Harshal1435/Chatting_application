@@ -19,7 +19,7 @@ function User({ user }) {
         {/* Avatar */}
         <div className="relative w-12 h-12">
           <img
-            src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/..."
+            src="https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png"
             alt="avatar"
             className="rounded-full w-full h-full object-cover"
           />

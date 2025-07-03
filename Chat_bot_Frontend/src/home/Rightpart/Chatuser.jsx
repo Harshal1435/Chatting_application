@@ -28,12 +28,12 @@ function Chatuser() {
       <div className="flex items-center justify-between p-4 bg-slate-800 text-white">
         <div className="flex items-center gap-4">
           <img
-            src={selectedConversation.avatar}
+            src={selectedConversation.avatar|| "https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png"}
             alt="avatar"
             className="w-12 h-12 rounded-full"
           />
           <div>
-            <p className="font-medium">{selectedConversation.username}</p>
+            <p className="font-medium">{selectedConversation.fullname}</p>
             <span className="text-sm text-gray-400">{status}</span>
           </div>
         </div>
