@@ -17,7 +17,7 @@ const useSendMessage = () => {
      
         const newtoken = authUser?.user?.token || token;
   
-        console.log(newtoken)
+        console.log("ndskjmdk",authUser?.user?.token)
       if (!selectedConversation) return;
 
       // ⬅️ Encrypt the message

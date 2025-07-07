@@ -1,29 +1,33 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Left from "./home/Leftpart/Left";
 import Right from "./home/Rightpart/Right";
-import Signup from "./components/Signup";
-import Login from "./components/Login";
+import Signup from "./pages/Signup";
+import Login from "./pages/Login";
 import { useAuth } from "./context/AuthProvider";
 import { Toaster } from "react-hot-toast";
 import { Navigate, Route, Routes } from "react-router-dom";
 import useConversation from "./statemanage/useConversation";
-
-// ✅ Import modals globally
+import BottomNav from "./components/BottomNav";
 import CallModal from "./components/CallModal";
 import IncomingCallModal from "./components/IncomingCallModal";
+import { ThemeProvider } from "./context/ThemeContext";
+import StatusList from "./components/Status/StatusList";
 
 function App() {
   const [authUser] = useAuth();
+  console.log("uhdcdiucdhyuc::",authUser)
   const { selectedConversation } = useConversation();
-
+  const [activeTab, setActiveTab] = useState("Chats");
+const user = JSON.parse(localStorage.getItem("ChatApp"))?.user
+console.log("user::",user)
   return (
-    <>
+    <ThemeProvider>
       <Routes>
         <Route
           path="/"
           element={
             authUser ? (
-              <div className="flex h-screen bg-slate-900 text-white overflow-hidden">
+              <div className="flex h-screen bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 overflow-hidden transition-colors duration-300">
                 <div className="flex w-full">
                   {/* Left Panel */}
                   <div
@@ -33,7 +37,7 @@ function App() {
                         : "block w-full lg:w-[30%]"
                     }`}
                   >
-                    <Left />
+                    <Left activeTab={activeTab} setActiveTab={setActiveTab} />
                   </div>
 
                   {/* Right Panel */}
@@ -47,11 +51,16 @@ function App() {
                     <Right />
                   </div>
                 </div>
+              
               </div>
             ) : (
               <Navigate to={"/login"} />
             )
           }
+        />
+        <Route
+          path="/status"
+          element={authUser ? <StatusList currentUser={user} /> : <Navigate to={"/login"} />}
         />
         <Route
           path="/login"
@@ -63,12 +72,19 @@ function App() {
         />
       </Routes>
 
-      {/* ✅ Global Call Modals */}
       <CallModal />
       <IncomingCallModal />
-
-      <Toaster />
-    </>
+      <Toaster 
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: '#333',
+            color: '#fff',
+          },
+          duration: 3000,
+        }}
+      />
+    </ThemeProvider>
   );
 }
 

@@ -41,6 +41,7 @@ export const signup = async (req, res) => {
         _id: newUser._id,
         fullname: newUser.fullname,
         email: newUser.email,
+        avatar:newUser.avatar
       },
     });
   } catch (error) {
@@ -83,6 +84,7 @@ export const login = async (req, res) => {
         _id: user._id,
         fullname: user.fullname,
         email: user.email,
+         avatar:user.avatar
       },
     });
   } catch (error) {

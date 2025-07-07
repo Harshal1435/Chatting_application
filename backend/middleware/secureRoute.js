@@ -31,7 +31,7 @@ const secureRoute = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error("❌ Error in secureRoute:", error.message);
+    console.error("❌ Error in secureRoute:", error);
     res.status(401).json({ error: "Invalid or malformed token" });
   }
 };

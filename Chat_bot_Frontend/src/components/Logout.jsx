@@ -24,14 +24,14 @@ function Logout() {
   };
 
   return (
-    <div className="w-full p-2 flex justify-center bg-slate-900 border-t border-slate-700">
+    <div className="w-full p-2 flex justify-center bg-amber-50 ">
       <button
         onClick={handleLogout}
         disabled={loading}
         title="Logout"
-        className="p-2 rounded-lg hover:bg-slate-700 transition-colors duration-200"
+        className="p-2 rounded-lg  transition-colors duration-200"
       >
-        <TbLogout2 className="text-white text-2xl" />
+        <TbLogout2 className="text-black text-2xl" />
       </button>
     </div>
   );

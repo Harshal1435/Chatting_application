@@ -26,6 +26,8 @@ function Login() {
         if (response.data) {
           toast.success("Login successful");
           localStorage.setItem("ChatApp", JSON.stringify(response.data));
+           localStorage.setItem("token", JSON.stringify(response.data.user.token))
+           console.log("ioedkkmdk:",localStorage.getItem("token", JSON.stringify(response.data.user.token)))
           setAuthUser(response.data);
         }
       })

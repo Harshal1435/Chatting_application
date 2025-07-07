@@ -5,3 +5,26 @@
 .flex-1::-webkit-scrollbar {
   display: none;
 }
+/* Add these to your global CSS */
+
+/* Smooth transitions for theme changes */
+html {
+  @apply transition-colors duration-300;
+}
+
+/* Custom scrollbar for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  @apply bg-gray-800;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-gray-600 rounded-full;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500;
+}
