@@ -12,7 +12,10 @@ import CallModal from "./components/CallModal";
 import IncomingCallModal from "./components/IncomingCallModal";
 import { ThemeProvider } from "./context/ThemeContext";
 import StatusList from "./components/Status/StatusList";
-
+import ProfileView from "./components/ProfileView"
+import Notifications from "./components/notification";
+import CreatePost from "./components/CreatePost";
+import PostView from "./components/PostView";
 function App() {
   const [authUser] = useAuth();
   console.log("uhdcdiucdhyuc::",authUser)
@@ -62,6 +65,25 @@ console.log("user::",user)
           path="/status"
           element={authUser ? <StatusList currentUser={user} /> : <Navigate to={"/login"} />}
         />
+            <Route 
+                path="/profile/:userId" 
+                element={
+                  authUser ? <ProfileView  />:<Navigate to={"/login"}/>
+                } 
+              />
+               <Route 
+                path="/notifications" 
+                element={
+                  authUser ? <Notifications />:<Navigate to={"/login"}/>
+                } 
+              />
+
+              <Route
+                path="/create-post"
+                element={authUser? <CreatePost /> : <Navigate to={"/login"} />}
+              />
+              <Route path="/posts/:id" element={<PostView />} />
+
         <Route
           path="/login"
           element={authUser ? <Navigate to="/" /> : <Login />}

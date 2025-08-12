@@ -4,23 +4,23 @@ import io from "socket.io-client";
 
 const SocketContext = createContext();
 
-// Custom hook
+// ✅ Custom hook
 export const useSocketContext = () => useContext(SocketContext);
- const baseurl = import.meta.env.VITE_API_URL || "http://localhost:5000";
-// Provider component
+
+// ✅ Base URL
+const baseurl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+// ✅ Socket Provider
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [authUser] = useAuth();
 
   useEffect(() => {
-    // ✅ Ensure user is present
-    if (!authUser || !authUser.user?._id) {
-      console.warn("SocketProvider: authUser missing");
-      return;
-    }
+    if (!authUser || !authUser.user?._id) return;
 
-    const newSocket = io(`${baseurl}`, {
+    const newSocket = io(baseurl, {
       withCredentials: true,
       query: {
         userId: authUser.user._id,
@@ -29,20 +29,33 @@ export const SocketProvider = ({ children }) => {
 
     setSocket(newSocket);
 
-    // ✅ Handle online users event
+    // ✅ Receive online user updates
     newSocket.on("getOnlineUsers", (users) => {
       setOnlineUsers(users);
     });
 
-    // ✅ Clean up on unmount
+    // ✅ Handle incoming notifications
+    newSocket.on("notification", (notification) => {
+      setNotifications((prev) => [notification, ...prev]);
+    });
+
+    // ✅ Optional: Clear notifications on logout
     return () => {
       newSocket.disconnect();
       setSocket(null);
+      setNotifications([]);
     };
   }, [authUser]);
 
   return (
-    <SocketContext.Provider value={{ socket, onlineUsers }}>
+    <SocketContext.Provider
+      value={{
+        socket,
+        onlineUsers,
+        notifications,
+        setNotifications, // in case you want to mark them as read or clear
+      }}
+    >
       {children}
     </SocketContext.Provider>
   );

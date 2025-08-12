@@ -16,12 +16,16 @@ cloudinary.config({
 });
 
 // ✅ Upload file to Cloudinary
-export const uploadToCloudinary = async (filePath, folder = "status_uploads") => {
+export const uploadToCloudinary = async (filePath, options = {}) => {
   try {
     if (!filePath) throw new Error("File path is required for Cloudinary upload");
 
+    // Default to status_uploads folder if not specified
+    const folder = options.folder || "status_uploads";
+    const resourceType = options.resourceType || "auto";
+
     const result = await cloudinary.uploader.upload(filePath, {
-      resource_type: "auto",
+      resource_type: resourceType,
       folder,
     });
 
@@ -43,20 +47,20 @@ export const uploadToCloudinary = async (filePath, folder = "status_uploads") =>
 };
 
 // ✅ Delete file from Cloudinary via public URL
-export const deleteFromCloudinary = async (cloudinaryUrl) => {
+export const deleteFromCloudinary = async (cloudinaryUrl, folder) => {
   try {
     if (!cloudinaryUrl) return;
 
     const urlObj = new URL(cloudinaryUrl);
     const pathParts = urlObj.pathname.split("/");
 
-    const folderIndex = pathParts.indexOf("status_uploads");
+    const folderIndex = pathParts.indexOf(folder);
     if (folderIndex === -1) return;
 
     const publicIdWithExt = pathParts.slice(folderIndex + 1).join("/");
     const publicId = publicIdWithExt.replace(/\.[^/.]+$/, ""); // Remove extension
 
-    await cloudinary.uploader.destroy(`status_uploads/${publicId}`, {
+    await cloudinary.uploader.destroy(`${folder}/${publicId}`, {
       resource_type: "auto",
     });
   } catch (error) {

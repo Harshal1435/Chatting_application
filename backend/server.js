@@ -7,7 +7,7 @@ import StatusRoute from "./routes/status.route.js";
 import userRoute from "./routes/user.route.js";
 import messageRoute from "./routes/message.route.js";
 import { app, server } from "./SocketIO/server.js";
-
+import postRoute from "./routes/userPost.route.js";
 
 dotenv.config();
 
@@ -49,6 +49,7 @@ app.use((req, res, next) => {
 app.use("/api/user", userRoute);
 app.use("/api/message", messageRoute);
 app.use("/api/status", StatusRoute);
+app.use("/api/post", postRoute)
 server.listen(PORT, () => {
     console.log(`Server is Running on port ${PORT}`);
 });

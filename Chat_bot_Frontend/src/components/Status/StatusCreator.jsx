@@ -76,20 +76,21 @@ const StatusCreator = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-[#0b141a] flex items-center justify-center z-50">
       <div className="relative w-full h-full max-h-screen flex flex-col">
         {/* Header */}
-        <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-4 z-10">
+        <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-3 z-10 bg-[#202c33]">
           <button 
             onClick={onClose}
-            className="text-white p-2 rounded-full hover:bg-white/10 transition-colors"
+            className="text-white p-1 rounded-full"
           >
             <X size={24} />
           </button>
+          <h2 className="text-white font-medium">Status</h2>
           <button 
             onClick={handleCreateStatus}
             disabled={isUploading}
-            className="text-white font-medium px-4 py-1 rounded-full bg-green-500 hover:bg-green-600 disabled:opacity-50 transition-colors"
+            className="text-white font-medium px-3 py-1 rounded-md bg-[#00a884] hover:bg-[#06cf9c] disabled:opacity-50"
           >
             {isUploading ? "Sending..." : "Send"}
           </button>
@@ -97,7 +98,7 @@ const StatusCreator = ({ isOpen, onClose }) => {
 
         {/* Status Preview */}
         {preview ? (
-          <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+          <div className="flex-1 flex items-center justify-center relative overflow-hidden bg-black">
             {selectedFile?.type.startsWith("image/") ? (
               <img
                 src={preview}
@@ -123,9 +124,9 @@ const StatusCreator = ({ isOpen, onClose }) => {
                     value={caption}
                     onChange={(e) => setCaption(e.target.value)}
                     placeholder="Add a caption..."
-                    className="w-full bg-black/50 text-white p-3 rounded-full border border-white/30 focus:outline-none focus:border-white pl-10 pr-4 transition-all"
+                    className="w-full bg-[#202c33] text-white p-3 rounded-md focus:outline-none pl-10 pr-4"
                   />
-                  <Smile className="absolute left-3 top-3 text-white" size={20} />
+                  <Smile className="absolute left-3 top-3 text-gray-400" size={20} />
                 </div>
               </div>
             )}
@@ -134,31 +135,31 @@ const StatusCreator = ({ isOpen, onClose }) => {
             <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-4">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+                className="p-3 bg-[#202c33] rounded-full hover:bg-[#2a3942]"
               >
                 <Camera className="text-white" size={24} />
               </button>
               
               <button
                 onClick={() => setShowCaptionInput(!showCaptionInput)}
-                className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+                className="p-3 bg-[#202c33] rounded-full hover:bg-[#2a3942]"
               >
                 <Pencil className="text-white" size={24} />
               </button>
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="flex-1 flex flex-col items-center justify-center p-6 bg-[#0b141a]">
             <div className="text-center space-y-6">
-              <div className="mx-auto w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center">
-                <Camera className="text-white" size={32} />
+              <div className="mx-auto w-16 h-16 rounded-full bg-[#202c33] flex items-center justify-center">
+                <Camera className="text-gray-400" size={32} />
               </div>
-              <h2 className="text-2xl font-bold text-white">Share a photo or video</h2>
-              <p className="text-gray-300">Photos and videos will disappear after 24 hours</p>
+              <h2 className="text-2xl font-bold text-gray-200">Share a photo or video</h2>
+              <p className="text-gray-400">Photos and videos will disappear after 24 hours</p>
               
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="px-6 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+                className="px-6 py-2 bg-[#00a884] text-white rounded-md hover:bg-[#06cf9c]"
               >
                 Select from gallery
               </button>

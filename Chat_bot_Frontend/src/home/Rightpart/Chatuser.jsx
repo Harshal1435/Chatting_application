@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import useConversation from "../../statemanage/useConversation.js";
 import { useSocketContext } from "../../context/SocketContext.jsx";
-import EditProfile from "../../components/EditProfile.jsx";
+import ProfileView from "../../components/ProfileView.jsx"
 import { CiMenuFries } from "react-icons/ci";
 import { MdCall, MdVideoCall, MdMoreVert } from "react-icons/md";
 import { useCallContext } from "../../context/CallContext.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 import { IoIosArrowDown } from "react-icons/io";
+import { Link } from "react-router-dom";
+
 
 function Chatuser() {
   const { selectedConversation } = useConversation();
@@ -34,6 +36,7 @@ function Chatuser() {
       <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-3">
           <div className="relative">
+          <Link to={`/profile/${selectedConversation._id}`}>
             <img
               src={selectedConversation.avatar || "https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png"}
               alt="avatar"
@@ -42,6 +45,7 @@ function Chatuser() {
             {isOnline && (
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
             )}
+            </Link>
           </div>
           <div>
             <p className="font-medium text-gray-900 dark:text-white">
@@ -112,12 +116,24 @@ function Chatuser() {
           </div>
         </div>
       </div>
-
-      <AnimatePresence>
-        {showEdit && (
-          <EditProfile onClose={() => setShowEdit(false)} />
-        )}
-      </AnimatePresence>
+  
+    <AnimatePresence>
+  {showEdit && selectedConversation && (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Link 
+        to={`/profile/${selectedConversation._id}`}
+        className="flex items-center justify-center p-2 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 transition-colors"
+      >
+       
+      </Link>
+    </motion.div>
+  )}
+</AnimatePresence>
     </>
   );
 }

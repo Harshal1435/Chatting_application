@@ -1,14 +1,5 @@
-"use client";
-
 import { useState, useEffect, useRef } from "react";
-import {
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  Heart,
-  Reply,
-} from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Eye, Heart, Reply } from "lucide-react";
 import { useSocketContext } from "../../context/SocketContext";
 import { useAuth } from "../../context/AuthProvider";
 import axios from "axios";
@@ -100,39 +91,8 @@ const StatusViewer = ({ status, onClose, currentUser }) => {
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 text-white relative z-10">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-600">
-            {statusUser?.avatar ? (
-              <img
-                src={statusUser.avatar}
-                alt={statusUser.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm">
-                {statusUser?.name?.charAt(0).toUpperCase()}
-              </div>
-            )}
-          </div>
-          <div>
-            <p className="font-medium">{statusUser?.name}</p>
-            <p className="text-sm text-gray-300">
-              {new Date(currentStatus?.createdAt).toLocaleString()}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full"
-        >
-          <X size={24} />
-        </button>
-      </div>
-
       {/* Progress Bars */}
-      <div className="flex space-x-1 px-4 pb-2">
+      <div className="flex space-x-1 px-4 pt-2">
         {userStatuses.map((_, index) => (
           <div
             key={index}
@@ -155,6 +115,40 @@ const StatusViewer = ({ status, onClose, currentUser }) => {
             />
           </div>
         ))}
+      </div>
+
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 text-white relative z-10 bg-gradient-to-b from-black/70 to-transparent">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-600">
+            {statusUser?.avatar ? (
+              <img
+                src={statusUser.avatar}
+                alt={statusUser.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-[#00a884] flex items-center justify-center text-white font-semibold text-sm">
+                {statusUser?.name?.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="font-medium">{statusUser?.name}</p>
+            <p className="text-xs text-gray-300">
+              {new Date(currentStatus?.createdAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-2 text-white"
+        >
+          <X size={24} />
+        </button>
       </div>
 
       {/* Content */}
@@ -218,7 +212,7 @@ const StatusViewer = ({ status, onClose, currentUser }) => {
       </div>
 
       {/* Footer */}
-      <div className="p-4 flex items-center justify-between text-white">
+      <div className="p-4 flex items-center justify-between text-white bg-gradient-to-t from-black/70 to-transparent">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-1">
             <Eye size={18} />

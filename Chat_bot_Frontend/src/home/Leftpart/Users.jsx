@@ -9,6 +9,8 @@ function Users() {
   const [allUsers, loading] = useGetAllUsers();
   const { authUser } = useAuth();
 
+
+ 
   return (
     <div className="flex flex-col h-full">
       {/* Status List */}
