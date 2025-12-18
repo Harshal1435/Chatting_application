@@ -6,7 +6,7 @@
 // import Conversation from "../models/conversation.model.js";
 // import Status from "../models/status.model.js";
 // import User from "../models/user.model.js";
-// import { uploadToCloudinary } from "../utils/cloudinary.js";
+// import { uploadToCloudinary } from "../Utils/cloudinary.js";
 // import multer from "multer";
 // import { v4 as uuidv4 } from 'uuid';
 // const upload = multer({ dest: 'uploads/' });

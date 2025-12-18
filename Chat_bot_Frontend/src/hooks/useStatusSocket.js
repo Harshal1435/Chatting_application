@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useSocketContext } from './socket.context'; // Your existing socket context
 import { useAuthContext } from './auth.context';
 import axios from 'axios';
-import { API_URL } from '../utils/constants';
+import { API_URL } from '../Utils/constants';
 
 const StatusSocketContext = createContext();
 

@@ -2,7 +2,7 @@ import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import createTokenAndSaveCookie from "../jwt/generateToken.js";
 
-import { uploadToCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import { uploadToCloudinary, deleteFromCloudinary } from "../Utils/cloudinary.js";
 
 
 // ✅ Signup
