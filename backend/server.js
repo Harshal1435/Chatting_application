@@ -58,6 +58,9 @@ app.use((req, res, next) => {
   }
 });
 
+app.use("/", (req, res) => {
+    res.send("API is running...");
+});
 
 //routes
 app.use("/api/user", userRoute);
