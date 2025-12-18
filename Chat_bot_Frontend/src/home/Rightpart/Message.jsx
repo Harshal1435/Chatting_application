@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FaCheck, FaCheckDouble } from "react-icons/fa";
 import { useSocketContext } from "../../context/SocketContext";
 import useSeenMessage from "../../context/useSeenMessage";
-import { decryptText } from "../../utils/cryptoUtils";
+import { decryptText } from "../../Utils/cryptoUtils";
 import { motion } from "framer-motion";
 
 function Message({ message }) {
