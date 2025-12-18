@@ -15,14 +15,15 @@ dotenv.config();
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors());
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      const allowedOrigins = [
+  const allowedOrigins = [
         "http://localhost:5173",
         "https://chatting-application-mu.vercel.app",
         "https://chatting-application-1.netlify.app",
       ];
+app.use(
+  cors({
+    origin: (origin, callback) => {
+    
 
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
@@ -47,16 +48,17 @@ try {
 }
 
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173'); // Allow requests from your frontend origin
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE'); // Add allowed methods
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // Add allowed headers
-  res.setHeader('Access-Control-Allow-Credentials', 'true'); // Allow credentials
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigins);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   if (req.method === 'OPTIONS') {
-    res.sendStatus(200); // Handle preflight requests
+    res.sendStatus(200);
   } else {
     next();
   }
 });
+
 
 app.use("/", (req, res) => {
     res.send("API is running...");
