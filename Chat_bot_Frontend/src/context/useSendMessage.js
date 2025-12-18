@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import useConversation from "../statemanage/useConversation.js";
 import axios from "axios";
-import { encryptText } from "../Utils/cryptoUtils.js"; // ⬅️ import the encryption utility
+import { encryptText } from "../Utils/cryptoUtils"; // ⬅️ import the encryption utility
 import { useAuth } from "./AuthProvider.jsx";
 import Cookies from "js-cookie";
 const useSendMessage = () => {
