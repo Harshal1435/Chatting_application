@@ -1,6 +1,6 @@
 import express from "express";
 import secureRoute from "../middleware/secureRoute.js";
-import upload from "../utils/multerConfig.js";
+import upload from "../Utils/multerConfig.js";
 import {
   createPost,
   toggleLikePost,
