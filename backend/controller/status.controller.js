@@ -1,6 +1,6 @@
 import Status from "../models/status.model.js";
 import User from "../models/user.model.js";
-import { uploadToCloudinary } from "../utils/cloudinary.js";
+import { uploadToCloudinary } from "../Utils/cloudinary.js";
 
 // ✅ Create a new status
 export const createStatus = async (req, res) => {

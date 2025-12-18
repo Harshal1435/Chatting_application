@@ -2,7 +2,7 @@
 
 import Post from "../models/UserPosts.js";
 import User from "../models/user.model.js";
-import { uploadToCloudinary } from "../utils/cloudinary.js";
+import { uploadToCloudinary } from "../Utils/cloudinary.js";
 
 // Create Post Controller
 // controllers/postController.js
