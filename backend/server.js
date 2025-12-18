@@ -16,7 +16,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(cors());
 app.use(cors({
-  origin: ["http://localhost:5173", "https://chatting-application-1.netlify.app"],
+  origin: ["http://localhost:5173", "https://chatting-application-mu.vercel.app" , "https://chatting-application-1.netlify.app"],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
