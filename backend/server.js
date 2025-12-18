@@ -36,17 +36,6 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
-const PORT = process.env.PORT || 5000;
-const URI = process.env.MONGODB_URI;
-
-try {
-    mongoose.connect(URI);
-    console.log("Connected to MongoDB");
-} catch (error) {
-    console.log(error);
-}
-
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', allowedOrigins);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
@@ -58,6 +47,17 @@ app.use((req, res, next) => {
     next();
   }
 });
+
+const PORT = process.env.PORT || 5000;
+const URI = process.env.MONGODB_URI;
+
+try {
+    mongoose.connect(URI);
+    console.log("Connected to MongoDB");
+} catch (error) {
+    console.log(error);
+}
+
 
 
 app.use("/", (req, res) => {
