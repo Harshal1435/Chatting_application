@@ -1,3 +1,4 @@
+// src/components/modals/IncomingCallModal.jsx
 import React, { useEffect, useState } from "react";
 import { useCallContext } from "../context/CallContext";
 import { FaPhoneAlt, FaPhoneSlash } from "react-icons/fa";
@@ -7,14 +8,10 @@ const IncomingCallModal = () => {
   const { incomingCall, acceptCall, rejectCall } = useCallContext();
   const [ringing, setRinging] = useState(true);
 
-  // Toggle ring animation
   useEffect(() => {
-    if (!incomingCall) return; // Stop if no incoming call
-    const interval = setInterval(() => {
-      setRinging((prev) => !prev);
-    }, 800);
+    const interval = setInterval(() => setRinging((prev) => !prev), 1000);
     return () => clearInterval(interval);
-  }, [incomingCall]);
+  }, []);
 
   if (!incomingCall) return null;
 
@@ -28,9 +25,7 @@ const IncomingCallModal = () => {
         <div className="relative mx-auto mb-6">
           <div
             className={`w-32 h-32 rounded-full bg-indigo-900 flex items-center justify-center mx-auto transition-all duration-300 ${
-              ringing
-                ? "ring-4 ring-opacity-80 ring-indigo-500"
-                : "ring-2 ring-opacity-60 ring-indigo-400"
+              ringing ? "ring-4 ring-opacity-80 ring-indigo-500" : "ring-2 ring-opacity-60 ring-indigo-400"
             }`}
           >
             {incomingCall.photo ? (
@@ -45,6 +40,7 @@ const IncomingCallModal = () => {
               </span>
             )}
           </div>
+
           {/* Call type badge */}
           <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gray-800 px-3 py-1 rounded-full border border-gray-700 flex items-center">
             {callType === "video" ? (
@@ -52,38 +48,29 @@ const IncomingCallModal = () => {
             ) : (
               <BsMicFill className="text-indigo-400 mr-1" />
             )}
-            <span className="text-xs text-gray-300 font-medium">
-              {callType} call
-            </span>
+            <span className="text-xs text-gray-300 font-medium">{callType} call</span>
           </div>
         </div>
 
         <h2 className="text-2xl font-bold text-white mb-1">{callerName}</h2>
         <p className="text-gray-400 mb-8">is calling...</p>
 
-        {/* Call Controls */}
+        {/* Controls */}
         <div className="flex justify-center gap-6">
           <button
             onClick={rejectCall}
-            className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-red-500/30 flex flex-col items-center"
+            className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full flex flex-col items-center shadow-lg transition-transform transform hover:scale-110"
           >
             <FaPhoneSlash className="text-2xl" />
             <span className="text-xs mt-1">Decline</span>
           </button>
           <button
             onClick={acceptCall}
-            className="bg-green-500 hover:bg-green-600 text-white p-4 rounded-full transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-green-500/30 flex flex-col items-center"
+            className="bg-green-500 hover:bg-green-600 text-white p-4 rounded-full flex flex-col items-center shadow-lg transition-transform transform hover:scale-110"
           >
             <FaPhoneAlt className="text-2xl" />
             <span className="text-xs mt-1">Accept</span>
           </button>
-        </div>
-
-        {/* Optional Wave Animation */}
-        <div className="mt-8 relative h-4 overflow-hidden">
-          <div className="absolute bottom-0 left-0 right-0 h-2 bg-indigo-900/30 rounded-full">
-            <div className="absolute top-0 left-0 h-full w-full bg-indigo-500/30 rounded-full animate-wave"></div>
-          </div>
         </div>
       </div>
     </div>
