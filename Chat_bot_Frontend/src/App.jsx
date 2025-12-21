@@ -8,8 +8,8 @@ import { Toaster } from "react-hot-toast";
 import { Navigate, Route, Routes } from "react-router-dom";
 import useConversation from "./statemanage/useConversation";
 import BottomNav from "./components/BottomNav";
-
-
+import CallModal from "./components/CallModal";
+import IncomingCallModal from "./components/IncomingCallModal";
 import { ThemeProvider } from "./context/ThemeContext";
 import StatusList from "./components/Status/StatusList";
 import ProfileView from "./components/ProfileView"
@@ -94,7 +94,8 @@ console.log("user::",user)
         />
       </Routes>
 
-     
+      <CallModal />
+      <IncomingCallModal />
       <Toaster 
         position="top-center"
         toastOptions={{

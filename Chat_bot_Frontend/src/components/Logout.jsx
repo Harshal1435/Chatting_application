@@ -10,7 +10,7 @@ function Logout() {
   const handleLogout = async () => {
     setLoading(true);
     try {
-      
+      await axios.post("/api/user/logout");
       localStorage.removeItem("ChatApp");
       Cookies.remove("jwt");
       toast.success("Logged out successfully");
