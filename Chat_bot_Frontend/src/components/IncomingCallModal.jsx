@@ -1,6 +1,5 @@
-// src/components/modals/IncomingCallModal.jsx
 import React, { useEffect, useState } from "react";
-import { useCallContext } from "../context/CallContext"; // ✅ update path if needed
+import { useCallContext } from "../context/CallContext";
 import { FaPhoneAlt, FaPhoneSlash } from "react-icons/fa";
 import { BsCameraVideoFill, BsMicFill } from "react-icons/bs";
 
@@ -8,19 +7,14 @@ const IncomingCallModal = () => {
   const { incomingCall, acceptCall, rejectCall } = useCallContext();
   const [ringing, setRinging] = useState(true);
 
+  // Toggle ring animation
   useEffect(() => {
+    if (!incomingCall) return; // Stop if no incoming call
     const interval = setInterval(() => {
       setRinging((prev) => !prev);
-    }, 1000);
+    }, 800);
     return () => clearInterval(interval);
-  }, []);
-
-  // if(incomingCall ) {
-  //   console.log("Incoming call:", incomingCall);
-  // } else {
-  //   console.log("No incoming call");
-  // }
-
+  }, [incomingCall]);
 
   if (!incomingCall) return null;
 
@@ -34,7 +28,9 @@ const IncomingCallModal = () => {
         <div className="relative mx-auto mb-6">
           <div
             className={`w-32 h-32 rounded-full bg-indigo-900 flex items-center justify-center mx-auto transition-all duration-300 ${
-              ringing ? "ring-4 ring-opacity-80 ring-indigo-500" : "ring-2 ring-opacity-60 ring-indigo-400"
+              ringing
+                ? "ring-4 ring-opacity-80 ring-indigo-500"
+                : "ring-2 ring-opacity-60 ring-indigo-400"
             }`}
           >
             {incomingCall.photo ? (
@@ -56,7 +52,9 @@ const IncomingCallModal = () => {
             ) : (
               <BsMicFill className="text-indigo-400 mr-1" />
             )}
-            <span className="text-xs text-gray-300 font-medium">{callType} call</span>
+            <span className="text-xs text-gray-300 font-medium">
+              {callType} call
+            </span>
           </div>
         </div>
 
@@ -81,7 +79,7 @@ const IncomingCallModal = () => {
           </button>
         </div>
 
-        {/* Wave animation */}
+        {/* Optional Wave Animation */}
         <div className="mt-8 relative h-4 overflow-hidden">
           <div className="absolute bottom-0 left-0 right-0 h-2 bg-indigo-900/30 rounded-full">
             <div className="absolute top-0 left-0 h-full w-full bg-indigo-500/30 rounded-full animate-wave"></div>
