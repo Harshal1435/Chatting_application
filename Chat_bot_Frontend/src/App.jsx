@@ -9,6 +9,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import useConversation from "./statemanage/useConversation";
 import CallModal from "./components/CallModal";
 import IncomingCallModal from "./components/IncomingCallModal";
+import GroupCallModal from "./components/GroupCallModal";
 import { ThemeProvider } from "./context/ThemeContext";
 import StatusList from "./components/Status/StatusList";
 import ProfileView from "./components/ProfileView";
@@ -69,6 +70,7 @@ function App() {
 
       <CallModal />
       <IncomingCallModal />
+      <GroupCallModal />
       <Toaster
         position="top-center"
         toastOptions={{

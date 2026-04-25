@@ -1,17 +1,27 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
-/* Smooth theme transitions */
+/* ── Prevent flash of wrong theme ─────────────────────────────────────────── */
+/* These match Tailwind's gray-900 / white so the background is correct even  */
+/* before React hydrates and paints the first component tree.                 */
 html {
-  transition: background-color 0.2s ease, color 0.2s ease;
+  background-color: #ffffff;
+  color: #111827;
 }
 
-/* Hide scrollbar for flex containers */
-.flex-1::-webkit-scrollbar {
-  display: none;
+html.dark {
+  background-color: #111827;
+  color: #f9fafb;
 }
 
-/* Light mode scrollbar */
+/* ── Smooth theme transitions (applied after first paint) ─────────────────── */
+/* We delay the transition so it doesn't fire on initial load / page refresh. */
+html.theme-ready,
+html.theme-ready * {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* ── Scrollbars ───────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -30,11 +40,15 @@ html {
   background: #9ca3af;
 }
 
-/* Dark mode scrollbar */
 .dark ::-webkit-scrollbar-thumb {
   background: #4b5563;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #6b7280;
+}
+
+/* Hide scrollbar on flex-1 overflow containers */
+.flex-1::-webkit-scrollbar {
+  display: none;
 }
