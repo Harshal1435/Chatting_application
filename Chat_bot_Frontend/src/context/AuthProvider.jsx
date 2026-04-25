@@ -1,14 +1,25 @@
 import React, { createContext, useContext, useState } from "react";
-import Cookies from "js-cookie";
 
 export const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const initialUserState = Cookies.get("jwt") || localStorage.getItem("ChatApp");
+// Safe parse — never throws, returns undefined on any error
+const safeParseUser = () => {
+  try {
+    const raw = localStorage.getItem("ChatApp");
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    // Must have a user object with an _id to be considered valid
+    if (!parsed?.user?._id) return undefined;
+    return parsed;
+  } catch (_) {
+    // Corrupted localStorage — clear it so the user can log in fresh
+    localStorage.removeItem("ChatApp");
+    return undefined;
+  }
+};
 
-  const [authUser, setAuthUser] = useState(
-    initialUserState ? JSON.parse(initialUserState) : undefined
-  );
+export const AuthProvider = ({ children }) => {
+  const [authUser, setAuthUser] = useState(safeParseUser);
 
   return (
     <AuthContext.Provider value={[authUser, setAuthUser]}>

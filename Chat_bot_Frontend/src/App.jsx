@@ -21,7 +21,6 @@ function App() {
   const [authUser] = useAuth();
   const { selectedConversation } = useConversation();
   const [activeTab, setActiveTab] = useState("chats");
-  const user = JSON.parse(localStorage.getItem("ChatApp"))?.user;
 
   return (
     <ThemeProvider>
@@ -59,7 +58,7 @@ function App() {
           }
         />
 
-        <Route path="/status" element={authUser ? <StatusList currentUser={user} /> : <Navigate to="/login" />} />
+        <Route path="/status" element={authUser ? <StatusList currentUser={authUser?.user} /> : <Navigate to="/login" />} />
         <Route path="/profile/:userId" element={authUser ? <ProfileView /> : <Navigate to="/login" />} />
         <Route path="/notifications" element={authUser ? <Notifications /> : <Navigate to="/login" />} />
         <Route path="/create-post" element={authUser ? <CreatePost /> : <Navigate to="/login" />} />

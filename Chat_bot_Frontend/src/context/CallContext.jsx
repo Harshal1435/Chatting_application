@@ -348,36 +348,39 @@ export const CallProvider = ({ children }) => {
   }, [socket, groupCallRoom]);
 
   // ── Socket Listeners ──────────────────────────────────────────────────────
+  // Use a ref so socket listeners never need to re-register when endCall changes
+  const endCallRef = useRef(null);
+  endCallRef.current = endCall;
+
   useEffect(() => {
     if (!socket || !authUser?.user?._id) return;
 
-    // ── 1-1 ──
     const onIncomingCall = ({ callId, from, offer, callType }) => {
       setIncomingCall({ callId, from, offer, callType });
       setCallStatus("ringing");
     };
 
-    const onCallAccepted = async ({ callId, answer }) => {
+    const onCallAccepted = async ({ answer }) => {
       if (!peerConnection.current) return;
       try {
         await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
         processPendingICE();
         setCallStatus("ongoing");
         startTimer();
-      } catch (err) {
+      } catch (_) {
         toast.error("Failed to connect call");
-        endCall();
+        endCallRef.current?.();
       }
     };
 
     const onCallRejected = () => {
       toast("Call declined", { icon: "📵" });
-      endCall();
+      endCallRef.current?.();
     };
 
     const onCallEnded = () => {
       toast("Call ended", { icon: "📞" });
-      endCall();
+      endCallRef.current?.();
     };
 
     const onIceCandidate = ({ candidate }) => {
@@ -396,11 +399,9 @@ export const CallProvider = ({ children }) => {
       setActiveCall(false);
     };
 
-    // ── Group ──
     const onGroupExistingParticipants = async ({ roomId, participants, callType }) => {
       if (!groupLocalStream.current) return;
       const stream = groupLocalStream.current;
-
       for (const peerId of participants) {
         if (peerId === authUser.user._id) continue;
         const pc = createGroupPC(peerId, roomId, stream);
@@ -433,17 +434,17 @@ export const CallProvider = ({ children }) => {
     };
 
     const onGroupAnswer = async ({ from, answer }) => {
-      const peer = groupPeers[from];
-      if (peer?.pc) {
-        await peer.pc.setRemoteDescription(new RTCSessionDescription(answer)).catch(() => {});
-      }
+      setGroupPeers((prev) => {
+        prev[from]?.pc?.setRemoteDescription(new RTCSessionDescription(answer)).catch(() => {});
+        return prev;
+      });
     };
 
     const onGroupIceCandidate = ({ from, candidate }) => {
-      const peer = groupPeers[from];
-      if (peer?.pc && candidate) {
-        peer.pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
-      }
+      setGroupPeers((prev) => {
+        prev[from]?.pc?.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+        return prev;
+      });
     };
 
     const onGroupUserLeft = ({ userId }) => {
@@ -455,34 +456,35 @@ export const CallProvider = ({ children }) => {
       });
     };
 
-    socket.on("incoming-call",                  onIncomingCall);
-    socket.on("call-accepted",                  onCallAccepted);
-    socket.on("call-rejected",                  onCallRejected);
-    socket.on("call-ended",                     onCallEnded);
-    socket.on("webrtc-ice-candidate",           onIceCandidate);
-    socket.on("call-failed",                    onCallFailed);
+    socket.on("incoming-call",                    onIncomingCall);
+    socket.on("call-accepted",                    onCallAccepted);
+    socket.on("call-rejected",                    onCallRejected);
+    socket.on("call-ended",                       onCallEnded);
+    socket.on("webrtc-ice-candidate",             onIceCandidate);
+    socket.on("call-failed",                      onCallFailed);
     socket.on("group-call-existing-participants", onGroupExistingParticipants);
-    socket.on("group-call-user-joined",         onGroupUserJoined);
-    socket.on("group-offer",                    onGroupOffer);
-    socket.on("group-answer",                   onGroupAnswer);
-    socket.on("group-ice-candidate",            onGroupIceCandidate);
-    socket.on("group-call-user-left",           onGroupUserLeft);
+    socket.on("group-call-user-joined",           onGroupUserJoined);
+    socket.on("group-offer",                      onGroupOffer);
+    socket.on("group-answer",                     onGroupAnswer);
+    socket.on("group-ice-candidate",              onGroupIceCandidate);
+    socket.on("group-call-user-left",             onGroupUserLeft);
 
     return () => {
-      socket.off("incoming-call",                  onIncomingCall);
-      socket.off("call-accepted",                  onCallAccepted);
-      socket.off("call-rejected",                  onCallRejected);
-      socket.off("call-ended",                     onCallEnded);
-      socket.off("webrtc-ice-candidate",           onIceCandidate);
-      socket.off("call-failed",                    onCallFailed);
+      socket.off("incoming-call",                    onIncomingCall);
+      socket.off("call-accepted",                    onCallAccepted);
+      socket.off("call-rejected",                    onCallRejected);
+      socket.off("call-ended",                       onCallEnded);
+      socket.off("webrtc-ice-candidate",             onIceCandidate);
+      socket.off("call-failed",                      onCallFailed);
       socket.off("group-call-existing-participants", onGroupExistingParticipants);
-      socket.off("group-call-user-joined",         onGroupUserJoined);
-      socket.off("group-offer",                    onGroupOffer);
-      socket.off("group-answer",                   onGroupAnswer);
-      socket.off("group-ice-candidate",            onGroupIceCandidate);
-      socket.off("group-call-user-left",           onGroupUserLeft);
+      socket.off("group-call-user-joined",           onGroupUserJoined);
+      socket.off("group-offer",                      onGroupOffer);
+      socket.off("group-answer",                     onGroupAnswer);
+      socket.off("group-ice-candidate",              onGroupIceCandidate);
+      socket.off("group-call-user-left",             onGroupUserLeft);
     };
-  }, [socket, authUser, createGroupPC, groupPeers, groupCallType, endCall, cleanup1to1]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket, authUser?.user?._id]);
 
   // Cleanup on unmount
   useEffect(() => () => { cleanup1to1(); stopTimer(); }, []);
