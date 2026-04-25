@@ -1,13 +1,19 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import axios from "axios";
 import { useAuth } from "../context/AuthProvider";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
+import { FiUser, FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
+import { BsChatDotsFill } from "react-icons/bs";
 
 function Signup() {
   const [authUser, setAuthUser] = useAuth();
- const baseurl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const baseurl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
   const {
     register,
     handleSubmit,
@@ -16,126 +22,143 @@ function Signup() {
   } = useForm();
 
   const password = watch("password", "");
-  const confirmPassword = watch("confirmPassword", "");
-
-  const validatePasswordMatch = (value) => {
-    return value === password || "Passwords do not match";
-  };
 
   const onSubmit = async (data) => {
-    const userInfo = {
-      fullname: data.fullname,
-      email: data.email,
-      password: data.password,
-      confirmPassword: data.confirmPassword,
-    };
-
+    setIsLoading(true);
     try {
-      const response = await axios.post(`${baseurl}/api/user/signup`, userInfo);
+      const response = await axios.post(`${baseurl}/api/user/signup`, {
+        fullname: data.fullname,
+        email: data.email,
+        password: data.password,
+        confirmPassword: data.confirmPassword,
+      });
       if (response.data) {
-        toast.success("Signup successful");
+        toast.success("Account created! Welcome aboard.");
         localStorage.setItem("ChatApp", JSON.stringify(response.data));
         setAuthUser(response.data);
       }
     } catch (error) {
-      if (error.response) {
-        toast.error("Error: " + error.response.data.error);
-      }
+      toast.error(error.response?.data?.error || "Signup failed. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex h-screen items-center justify-center bg-slate-900 px-4">
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="w-full max-w-sm rounded-xl bg-slate-800 px-6 py-8 shadow-xl"
-      >
-        <h1 className="text-3xl font-bold text-green-500 text-center mb-2">
-          WhatsApp Signup
-        </h1>
-        <p className="text-center text-slate-300 mb-6">
-          Create your account to start chatting
-        </p>
-
-        {/* Fullname */}
-        <div className="mb-4">
-          <label className="text-sm text-slate-300 mb-1 block">Fullname</label>
-          <input
-            type="text"
-            placeholder="Enter your name"
-            {...register("fullname", { required: true })}
-            className="w-full rounded-lg bg-slate-700 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-green-500"
-          />
-          {errors.fullname && (
-            <span className="text-red-400 text-sm">This field is required</span>
-          )}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4 py-8">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-green-500/30">
+            <BsChatDotsFill className="text-white text-3xl" />
+          </div>
+          <h1 className="text-3xl font-bold text-white">Create account</h1>
+          <p className="text-slate-400 mt-1">Join and start chatting today</p>
         </div>
 
-        {/* Email */}
-        <div className="mb-4">
-          <label className="text-sm text-slate-300 mb-1 block">Email</label>
-          <input
-            type="email"
-            placeholder="Enter your email"
-            {...register("email", { required: true })}
-            className="w-full rounded-lg bg-slate-700 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-green-500"
-          />
-          {errors.email && (
-            <span className="text-red-400 text-sm">This field is required</span>
-          )}
-        </div>
-
-        {/* Password */}
-        <div className="mb-4">
-          <label className="text-sm text-slate-300 mb-1 block">Password</label>
-          <input
-            type="password"
-            placeholder="Enter password"
-            {...register("password", { required: true })}
-            className="w-full rounded-lg bg-slate-700 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-green-500"
-          />
-          {errors.password && (
-            <span className="text-red-400 text-sm">This field is required</span>
-          )}
-        </div>
-
-        {/* Confirm Password */}
-        <div className="mb-6">
-          <label className="text-sm text-slate-300 mb-1 block">
-            Confirm Password
-          </label>
-          <input
-            type="password"
-            placeholder="Confirm password"
-            {...register("confirmPassword", {
-              required: true,
-              validate: validatePasswordMatch,
-            })}
-            className="w-full rounded-lg bg-slate-700 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-green-500"
-          />
-          {errors.confirmPassword && (
-            <span className="text-red-400 text-sm">
-              {errors.confirmPassword.message}
-            </span>
-          )}
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors"
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-2xl px-8 py-8 shadow-2xl"
         >
-          Signup
-        </button>
+          {/* Fullname */}
+          <div className="mb-4">
+            <label className="text-sm font-medium text-slate-300 mb-2 block">Full Name</label>
+            <div className="relative">
+              <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg" />
+              <input
+                type="text"
+                placeholder="John Doe"
+                {...register("fullname", { required: "Full name is required" })}
+                className="w-full rounded-xl bg-slate-700/60 border border-slate-600 pl-10 pr-4 py-3 text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+              />
+            </div>
+            {errors.fullname && <p className="text-red-400 text-xs mt-1">{errors.fullname.message}</p>}
+          </div>
 
-        {/* Login Link */}
-        <p className="mt-4 text-center text-slate-300 text-sm">
-          Already have an account?{" "}
-          <Link to="/login" className="text-green-500 hover:underline">
-            Login
-          </Link>
-        </p>
-      </form>
+          {/* Email */}
+          <div className="mb-4">
+            <label className="text-sm font-medium text-slate-300 mb-2 block">Email</label>
+            <div className="relative">
+              <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg" />
+              <input
+                type="email"
+                placeholder="you@example.com"
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: { value: /^\S+@\S+$/i, message: "Invalid email" },
+                })}
+                className="w-full rounded-xl bg-slate-700/60 border border-slate-600 pl-10 pr-4 py-3 text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+              />
+            </div>
+            {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email.message}</p>}
+          </div>
+
+          {/* Password */}
+          <div className="mb-4">
+            <label className="text-sm font-medium text-slate-300 mb-2 block">Password</label>
+            <div className="relative">
+              <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg" />
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Min. 6 characters"
+                {...register("password", {
+                  required: "Password is required",
+                  minLength: { value: 6, message: "At least 6 characters" },
+                })}
+                className="w-full rounded-xl bg-slate-700/60 border border-slate-600 pl-10 pr-12 py-3 text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors">
+                {showPassword ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </div>
+            {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password.message}</p>}
+          </div>
+
+          {/* Confirm Password */}
+          <div className="mb-7">
+            <label className="text-sm font-medium text-slate-300 mb-2 block">Confirm Password</label>
+            <div className="relative">
+              <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg" />
+              <input
+                type={showConfirm ? "text" : "password"}
+                placeholder="Repeat your password"
+                {...register("confirmPassword", {
+                  required: "Please confirm your password",
+                  validate: (v) => v === password || "Passwords do not match",
+                })}
+                className="w-full rounded-xl bg-slate-700/60 border border-slate-600 pl-10 pr-12 py-3 text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+              />
+              <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors">
+                {showConfirm ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </div>
+            {errors.confirmPassword && <p className="text-red-400 text-xs mt-1">{errors.confirmPassword.message}</p>}
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-green-500 hover:bg-green-600 disabled:bg-green-800 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
+          >
+            {isLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              "Create Account"
+            )}
+          </button>
+
+          <p className="mt-6 text-center text-slate-400 text-sm">
+            Already have an account?{" "}
+            <Link to="/login" className="text-green-400 hover:text-green-300 font-medium transition-colors">
+              Sign in
+            </Link>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }

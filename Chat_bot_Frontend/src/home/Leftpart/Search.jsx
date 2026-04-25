@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FaSearch } from "react-icons/fa";
+import { FaSearch, FaTimes } from "react-icons/fa";
 import useGetAllUsers from "../../context/useGetAllUsers";
 import useConversation from "../../statemanage/useConversation";
 import toast from "react-hot-toast";
@@ -16,7 +16,6 @@ function Search() {
     const conversation = allUsers.find((user) =>
       user.fullname?.toLowerCase().includes(search.toLowerCase())
     );
-    console.log(allUsers)
 
     if (conversation) {
       setSelectedConversation(conversation);
@@ -27,17 +26,26 @@ function Search() {
   };
 
   return (
-    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 transition-colors duration-300">
+    <div className="px-3 py-2 bg-white dark:bg-gray-800">
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
-        <div className="flex items-center w-full bg-gray-100 dark:bg-gray-700 rounded-full px-4 py-2 transition-all focus-within:ring-2 focus-within:ring-blue-500">
-          <FaSearch className="text-gray-500 dark:text-gray-400 text-sm mr-2" />
+        <div className="flex items-center w-full bg-gray-100 dark:bg-gray-700 rounded-xl px-3 py-2 transition-all focus-within:ring-2 focus-within:ring-blue-500">
+          <FaSearch className="text-gray-400 dark:text-gray-500 text-sm mr-2 flex-shrink-0" />
           <input
             type="text"
-            placeholder="Search by name..."
-            className="bg-transparent w-full outline-none text-gray-800 dark:text-gray-200 text-sm placeholder-gray-500 dark:placeholder-gray-400 transition-colors"
+            placeholder="Search conversations..."
+            className="bg-transparent w-full outline-none text-gray-800 dark:text-gray-200 text-sm placeholder-gray-400 dark:placeholder-gray-500"
             value={search}
-            onChange={(e) => setSearch(e.target.value)} 
+            onChange={(e) => setSearch(e.target.value)}
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-1 flex-shrink-0"
+            >
+              <FaTimes className="text-xs" />
+            </button>
+          )}
         </div>
       </form>
     </div>

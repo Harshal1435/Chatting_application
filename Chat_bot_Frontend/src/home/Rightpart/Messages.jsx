@@ -3,9 +3,10 @@ import Message from "./Message";
 import useGetMessage from "../../context/useGetMessage.js";
 import useGetSocketMessage from "../../context/useGetSocketMessage.js";
 import useGetSocketSeenMessage from "../../context/useGetSocketSeenMessage.js";
-import Loading from "../../components/Loading.jsx";
+import LoadingSpinner from "../../home/LoadingSpinner.jsx";
 import { FiMessageSquare } from "react-icons/fi";
-import  useConversation  from "../../statemanage/useConversation.js";
+import { MdKeyboardArrowDown } from "react-icons/md";
+import useConversation from "../../statemanage/useConversation.js";
 
 function Messages() {
   const { loading, messages } = useGetMessage();
@@ -14,93 +15,98 @@ function Messages() {
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
 
-  useGetSocketMessage();       // 🎧 Listen for incoming messages
-  useGetSocketSeenMessage();  // 👁️ Update seen status
+  useGetSocketMessage();
+  useGetSocketSeenMessage();
 
-  // Auto-scroll to bottom when new messages arrive and user is at bottom
   useEffect(() => {
     if (isAtBottom && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isAtBottom]);
 
-  // Handle scroll events to determine if user is at bottom
+  // Scroll to bottom when conversation changes
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "instant" });
+      setIsAtBottom(true);
+    }
+  }, [selectedConversation]);
+
   const handleScroll = () => {
     if (containerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-      const threshold = 50; // pixels from bottom
-      setIsAtBottom(scrollHeight - (scrollTop + clientHeight) < threshold);
+      setIsAtBottom(scrollHeight - (scrollTop + clientHeight) < 60);
     }
   };
 
-  // Scroll to bottom button handler
   const scrollToBottom = () => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-      setIsAtBottom(true);
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setIsAtBottom(true);
   };
+
+  // Group messages by date
+  const groupedMessages = messages?.reduce((groups, msg) => {
+    const date = new Date(msg.createdAt).toLocaleDateString([], {
+      weekday: "long", month: "short", day: "numeric",
+    });
+    if (!groups[date]) groups[date] = [];
+    groups[date].push(msg);
+    return groups;
+  }, {});
 
   return (
-    <div
-      ref={containerRef}
-      onScroll={handleScroll}
-      className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-700"
-      style={{ height: "calc(100vh - 8rem)" }}
-    >
-      {loading ? (
-        <div className="flex justify-center items-center h-full">
-          <Loading />
-        </div>
-      ) : messages?.length > 0 ? (
-        <>
-          <div className="text-center py-4">
-            <div className="inline-block px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-full text-sm text-gray-600 dark:text-gray-300">
-              {selectedConversation?.fullname
-                ? `Conversation with ${selectedConversation.fullname}`
-                : "New conversation"}
+    <div className="relative flex-1 overflow-hidden">
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="h-full overflow-y-auto px-2 py-3 space-y-0.5 bg-gray-50 dark:bg-gray-900"
+        style={{
+          backgroundImage: "radial-gradient(circle at 1px 1px, rgba(0,0,0,0.03) 1px, transparent 0)",
+          backgroundSize: "24px 24px",
+        }}
+      >
+        {loading ? (
+          <div className="flex justify-center items-center h-full">
+            <LoadingSpinner size="large" />
+          </div>
+        ) : messages?.length > 0 ? (
+          <>
+            {Object.entries(groupedMessages || {}).map(([date, msgs]) => (
+              <div key={date}>
+                {/* Date separator */}
+                <div className="flex items-center justify-center my-4">
+                  <span className="px-3 py-1 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs rounded-full shadow-sm border border-gray-200 dark:border-gray-600">
+                    {date}
+                  </span>
+                </div>
+                {msgs.map((msg) => (
+                  <Message key={msg._id} message={msg} />
+                ))}
+              </div>
+            ))}
+            <div ref={messagesEndRef} className="h-2" />
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+              <FiMessageSquare className="text-2xl text-gray-400 dark:text-gray-500" />
             </div>
+            <p className="text-gray-500 dark:text-gray-400 font-medium">No messages yet</p>
+            <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">
+              Say hi to {selectedConversation?.fullname?.split(" ")[0]}!
+            </p>
           </div>
+        )}
+      </div>
 
-          {messages.map((msg) => (
-            <Message key={msg._id} message={msg} />
-          ))}
-          
-          <div ref={messagesEndRef} className="h-4" />
-        </>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-full text-center">
-          <div className="p-6 bg-gray-200 dark:bg-gray-600 rounded-full mb-4">
-            <FiMessageSquare className="text-4xl text-gray-400 dark:text-gray-300" />
-          </div>
-          <h3 className="text-xl font-medium text-gray-500 dark:text-gray-400 mb-2">
-            No messages yet
-          </h3>
-          <p className="text-gray-400 dark:text-gray-500 max-w-md">
-            Send your first message to start the conversation
-          </p>
-        </div>
-      )}
-
-      {/* Scroll to bottom button (only shows when not at bottom) */}
+      {/* Scroll to bottom button */}
       {!isAtBottom && (
         <button
           onClick={scrollToBottom}
-          className="fixed right-8 bottom-24 p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg transition-all"
+          className="absolute right-4 bottom-4 p-2.5 bg-white dark:bg-gray-700 text-blue-500 rounded-full shadow-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-600 transition-all"
           aria-label="Scroll to bottom"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l4.293-4.293a1 1 0 011.414 0z"
-              clipRule="evenodd"
-            />
-          </svg>
+          <MdKeyboardArrowDown className="text-xl" />
         </button>
       )}
     </div>

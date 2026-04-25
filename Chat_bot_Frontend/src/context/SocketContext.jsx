@@ -4,46 +4,53 @@ import io from "socket.io-client";
 
 const SocketContext = createContext();
 
-// ✅ Custom hook
 export const useSocketContext = () => useContext(SocketContext);
 
-// ✅ Base URL
 const baseurl = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-// ✅ Socket Provider
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [typingUsers, setTypingUsers] = useState({}); // { userId: true/false }
   const [authUser] = useAuth();
 
   useEffect(() => {
-    if (!authUser || !authUser.user?._id) return;
+    if (!authUser?.user?._id) return;
 
     const newSocket = io(baseurl, {
       withCredentials: true,
-      query: {
-        userId: authUser.user._id,
-      },
+      query: { userId: authUser.user._id },
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
     setSocket(newSocket);
 
-    // ✅ Receive online user updates
-    newSocket.on("getOnlineUsers", (users) => {
-      setOnlineUsers(users);
-    });
+    newSocket.on("getOnlineUsers", (users) => setOnlineUsers(users));
 
-    // ✅ Handle incoming notifications
     newSocket.on("notification", (notification) => {
       setNotifications((prev) => [notification, ...prev]);
     });
 
-    // ✅ Optional: Clear notifications on logout
+    // Typing indicators
+    newSocket.on("user-typing", ({ from }) => {
+      setTypingUsers((prev) => ({ ...prev, [from]: true }));
+    });
+
+    newSocket.on("user-stop-typing", ({ from }) => {
+      setTypingUsers((prev) => {
+        const updated = { ...prev };
+        delete updated[from];
+        return updated;
+      });
+    });
+
     return () => {
       newSocket.disconnect();
       setSocket(null);
       setNotifications([]);
+      setTypingUsers({});
     };
   }, [authUser]);
 
@@ -53,7 +60,8 @@ export const SocketProvider = ({ children }) => {
         socket,
         onlineUsers,
         notifications,
-        setNotifications, // in case you want to mark them as read or clear
+        setNotifications,
+        typingUsers,
       }}
     >
       {children}

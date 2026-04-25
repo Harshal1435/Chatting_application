@@ -4,9 +4,11 @@ import useConversation from "../statemanage/useConversation";
 
 const useGetSocketSeenMessage = () => {
   const { socket } = useSocketContext();
-  const { messages, setMessage } = useConversation(); // ✅ fixed: messages not message
+  const { setMessage } = useConversation();
 
   useEffect(() => {
+    if (!socket) return;
+
     const handleSeen = (updatedMessage) => {
       setMessage((prevMessages) =>
         Array.isArray(prevMessages)
@@ -18,12 +20,8 @@ const useGetSocketSeenMessage = () => {
     };
 
     socket.on("message-seen", handleSeen);
-
-    return () => {
-      socket.off("message-seen", handleSeen);
-    };
+    return () => socket.off("message-seen", handleSeen);
   }, [socket, setMessage]);
-
 };
 
 export default useGetSocketSeenMessage;

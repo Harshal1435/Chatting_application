@@ -1,30 +1,40 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
+/* Smooth theme transitions */
+html {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
 
+/* Hide scrollbar for flex containers */
 .flex-1::-webkit-scrollbar {
   display: none;
 }
-/* Add these to your global CSS */
 
-/* Smooth transitions for theme changes */
-html {
-  @apply transition-colors duration-300;
+/* Light mode scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
 }
 
-/* Custom scrollbar for dark mode */
-.dark ::-webkit-scrollbar {
-  width: 8px;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.dark ::-webkit-scrollbar-track {
-  @apply bg-gray-800;
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 99px;
 }
 
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Dark mode scrollbar */
 .dark ::-webkit-scrollbar-thumb {
-  @apply bg-gray-600 rounded-full;
+  background: #4b5563;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500;
+  background: #6b7280;
 }

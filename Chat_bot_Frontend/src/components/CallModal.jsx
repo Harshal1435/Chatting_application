@@ -1,112 +1,158 @@
-// src/components/modals/CallModal.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useCallContext } from "../context/CallContext";
-import { FaPhoneSlash, FaVideo, FaVideoSlash, FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
+import {
+  FaPhoneSlash, FaMicrophone, FaMicrophoneSlash,
+  FaVideo, FaVideoSlash,
+} from "react-icons/fa";
 import { MdScreenShare, MdStopScreenShare } from "react-icons/md";
+import { motion, AnimatePresence } from "framer-motion";
+
+const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png";
 
 const CallModal = () => {
   const {
-    activeCall,
-    callType,
-    localStream,
-    remoteStream,
-    endCall,
-    toggleVideo,
-    toggleMute,
-    toggleScreenShare,
-    isScreenSharing,
-    isVideoOn,
-    isMuted,
-    remoteUserId,
+    activeCall, callType, callStatus,
+    localStream, remoteStream,
+    endCall, toggleVideo, toggleMute, toggleScreenShare,
+    isScreenSharing, isVideoOn, isMuted,
+    remoteUserId, callDuration, isCaller,
   } = useCallContext();
 
-  const localRef = useRef(null);
+  const localRef  = useRef(null);
   const remoteRef = useRef(null);
-  const [timer, setTimer] = useState("00:00");
-  const [callDuration, setCallDuration] = useState(0);
 
-  // Update streams
+  // Attach streams whenever refs or streams change
   useEffect(() => {
-    if (localRef.current && localStream.current) localRef.current.srcObject = localStream.current;
-    if (remoteRef.current && remoteStream.current) remoteRef.current.srcObject = remoteStream.current;
-  }, [localStream.current, remoteStream.current]);
-
-  // Timer
-  useEffect(() => {
-    if (!activeCall) return;
-    const interval = setInterval(() => {
-      setCallDuration((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [activeCall]);
+    if (localRef.current && localStream.current) {
+      localRef.current.srcObject = localStream.current;
+    }
+  });
 
   useEffect(() => {
-    const min = Math.floor(callDuration / 60).toString().padStart(2, "0");
-    const sec = (callDuration % 60).toString().padStart(2, "0");
-    setTimer(`${min}:${sec}`);
-  }, [callDuration]);
+    if (remoteRef.current && remoteStream.current) {
+      remoteRef.current.srcObject = remoteStream.current;
+    }
+  });
+
+  const formatDuration = (s) => {
+    const m = Math.floor(s / 60).toString().padStart(2, "0");
+    const sec = (s % 60).toString().padStart(2, "0");
+    return `${m}:${sec}`;
+  };
 
   if (!activeCall) return null;
 
+  const isVideo = callType === "video";
+  const statusLabel =
+    callStatus === "ringing" ? (isCaller ? "Calling…" : "Incoming…") :
+    callStatus === "ongoing"  ? formatDuration(callDuration) : "Connecting…";
+
   return (
-    <div className="fixed inset-0 bg-gray-900 flex flex-col justify-center items-center z-50 text-white p-4">
-      {/* Video/Audio */}
-      <div className="flex-1 w-full flex flex-col md:flex-row items-center justify-center gap-4">
-        <div className="relative w-full max-w-2xl h-64 md:h-96 bg-gray-800 rounded-xl overflow-hidden">
-          {callType === "video" && (
-            <video ref={remoteRef} autoPlay playsInline className="w-full h-full object-cover" />
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-gray-950 flex flex-col"
+      >
+        {/* ── Remote video / audio placeholder ── */}
+        <div className="flex-1 relative flex items-center justify-center bg-gray-900">
+          {isVideo ? (
+            <video
+              ref={remoteRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-28 h-28 rounded-full bg-gray-700 flex items-center justify-center text-5xl font-bold text-white">
+                {remoteUserId?.charAt(0)?.toUpperCase() ?? "?"}
+              </div>
+              <p className="text-white text-xl font-semibold">{remoteUserId}</p>
+            </div>
           )}
-          {callType === "audio" && (
-            <div className="flex flex-col items-center justify-center h-full">
-              <p className="text-xl">{remoteUserId}</p>
+
+          {/* Status badge */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-black/50 backdrop-blur-sm rounded-full text-white text-sm font-medium">
+            {statusLabel}
+          </div>
+
+          {/* Local video PiP */}
+          {isVideo && (
+            <div className="absolute bottom-4 right-4 w-28 h-40 rounded-xl overflow-hidden border-2 border-white/30 shadow-xl bg-gray-800">
+              <video
+                ref={localRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+              {!isVideoOn && (
+                <div className="absolute inset-0 bg-gray-800 flex items-center justify-center">
+                  <FaVideoSlash className="text-gray-400 text-2xl" />
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        <div className="absolute bottom-24 right-4 w-32 h-48 md:w-40 md:h-60 bg-gray-800 rounded-lg overflow-hidden border-2 border-white shadow-lg">
-          {callType === "video" && (
-            <video ref={localRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+        {/* ── Controls ── */}
+        <div className="flex items-center justify-center gap-5 py-6 bg-gray-950">
+          {/* Mute */}
+          <ControlBtn
+            onClick={toggleMute}
+            active={isMuted}
+            activeColor="bg-red-600"
+            label={isMuted ? "Unmute" : "Mute"}
+            icon={isMuted ? <FaMicrophoneSlash size={20} /> : <FaMicrophone size={20} />}
+          />
+
+          {/* Video toggle */}
+          {isVideo && (
+            <ControlBtn
+              onClick={toggleVideo}
+              active={!isVideoOn}
+              activeColor="bg-red-600"
+              label={isVideoOn ? "Hide" : "Show"}
+              icon={isVideoOn ? <FaVideo size={20} /> : <FaVideoSlash size={20} />}
+            />
           )}
+
+          {/* Screen share */}
+          {isVideo && (
+            <ControlBtn
+              onClick={() => toggleScreenShare(!isScreenSharing)}
+              active={isScreenSharing}
+              activeColor="bg-blue-600"
+              label={isScreenSharing ? "Stop" : "Share"}
+              icon={isScreenSharing ? <MdStopScreenShare size={22} /> : <MdScreenShare size={22} />}
+            />
+          )}
+
+          {/* End call */}
+          <button
+            onClick={endCall}
+            className="flex flex-col items-center gap-1"
+          >
+            <div className="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-colors shadow-lg">
+              <FaPhoneSlash size={22} className="text-white" />
+            </div>
+            <span className="text-xs text-gray-400">End</span>
+          </button>
         </div>
-      </div>
-
-      {/* Controls */}
-      <div className="absolute bottom-8 left-0 right-0 flex justify-center space-x-6">
-        {/* Mute */}
-        <button
-          onClick={toggleMute}
-          className={`p-3 rounded-full ${isMuted ? "bg-red-600" : "bg-gray-700"} hover:bg-gray-600 transition`}
-        >
-          {isMuted ? <FaMicrophoneSlash size={20} /> : <FaMicrophone size={20} />}
-        </button>
-
-        {/* Video */}
-        {callType === "video" && (
-          <button
-            onClick={toggleVideo}
-            className={`p-3 rounded-full ${!isVideoOn ? "bg-red-600" : "bg-gray-700"} hover:bg-gray-600 transition`}
-          >
-            {isVideoOn ? <FaVideo size={20} /> : <FaVideoSlash size={20} />}
-          </button>
-        )}
-
-        {/* Screen Share */}
-        {callType === "video" && (
-          <button
-            onClick={toggleScreenShare}
-            className={`p-3 rounded-full ${isScreenSharing ? "bg-blue-600" : "bg-gray-700"} hover:bg-gray-600 transition`}
-          >
-            {isScreenSharing ? <MdStopScreenShare size={20} /> : <MdScreenShare size={20} />}
-          </button>
-        )}
-
-        {/* End Call */}
-        <button onClick={endCall} className="p-3 rounded-full bg-red-600 hover:bg-red-700 transition">
-          <FaPhoneSlash size={20} />
-        </button>
-      </div>
-    </div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
+
+const ControlBtn = ({ onClick, active, activeColor, icon, label }) => (
+  <button onClick={onClick} className="flex flex-col items-center gap-1">
+    <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${active ? activeColor : "bg-gray-700 hover:bg-gray-600"}`}>
+      <span className="text-white">{icon}</span>
+    </div>
+    <span className="text-xs text-gray-400">{label}</span>
+  </button>
+);
 
 export default CallModal;
