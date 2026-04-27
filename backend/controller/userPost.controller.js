@@ -85,14 +85,17 @@ export const createPost = async (req, res) => {
 export const showPost = async (req, res) => {
   try {
     const postId = req.params.id;
-    const post = await Post.findById(postId).populate("author");
+    const post = await Post.findById(postId)
+      .populate("author", "fullname avatar _id")
+      .populate("comments.user", "fullname avatar _id")
+      .populate("likes", "_id");
     if (!post) return res.status(404).json({ error: "Post not found" });
     return res.status(200).json(post);
-    } catch (error) {
-      console.error("Show post error:", error.message);
+  } catch (error) {
+    console.error("Show post error:", error.message);
     return res.status(500).json({ error: "Internal Server Error" });
-    }
-    };
+  }
+};
 
     export const deletePost = async (req, res) => {
   try {
@@ -174,12 +177,16 @@ export const addComment = async (req, res) => {
       createdAt: new Date(),
     };
 
-    post.comments.unshift(comment); // latest comment first
+    post.comments.unshift(comment);
     await post.save();
+
+    // Re-fetch with populated user so the response is usable directly
+    const updated = await Post.findById(postId)
+      .populate("comments.user", "fullname avatar _id");
 
     res.status(201).json({
       message: "Comment added",
-      comments: post.comments,
+      comments: updated.comments,
     });
   } catch (error) {
     console.error("Add comment error:", error.message);

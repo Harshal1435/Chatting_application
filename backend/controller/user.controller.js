@@ -85,16 +85,30 @@ export const allUsers = async (req, res) => {
 // ✅ Get profile (with follow count)
 export const getProfile = async (req, res) => {
   try {
-   const  { userId } = req.params;
-   console.log("jhncnjkdcn",userId);
+    const { userId } = req.params;
+    const requesterId = req.user._id.toString();
 
     const user = await User.findById(userId)
       .select("-password")
-      .populate("followers", "username avatar")
-      .populate("following", "username avatar")
-      .populate("post", "mediaUrl");
+      .populate("followers", "_id fullname avatar")
+      .populate("following", "_id fullname avatar")
+      .populate("post", "mediaUrl type caption _id createdAt");
 
     if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Privacy: if account is private and requester is not a follower (and not the owner),
+    // hide posts and follow requests
+    const isOwner    = requesterId === userId;
+    const isFollower = user.followers.some(f => f._id.toString() === requesterId);
+
+    if (user.isPrivate && !isOwner && !isFollower) {
+      return res.status(200).json({
+        ...user.toObject(),
+        post: [],           // hide posts
+        followRequests: [], // hide pending requests
+        isPrivateBlocked: true,
+      });
+    }
 
     res.status(200).json(user);
   } catch (error) {
@@ -111,48 +125,34 @@ export const updateProfile = async (req, res) => {
     const { userId } = req.params;
     const { fullname, isPrivate } = req.body;
 
-    // Check if the logged-in user is authorized
     if (req.user._id.toString() !== userId) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
     let avatar = req.user.avatar;
 
-    // ✅ If new avatar file is uploaded
-    console.log("req.file", req.file);
     if (req.file) {
-      // Delete old avatar if it exists
-      if (avatar) {
-        await deleteFromCloudinary(avatar, "profile_avatars");
-      }
-
-      // Upload new one
+      if (avatar) await deleteFromCloudinary(avatar, "profile_avatars");
       const uploadResult = await uploadToCloudinary(req.file.path, {
         folder: "profile_avatars",
         resourceType: "image",
       });
-
       avatar = uploadResult.secure_url;
     }
-    console.log("avatar", avatar);
 
-    // ✅ Update user in DB
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       {
         fullname: fullname || req.user.fullname,
         avatar,
-        isPrivate: isPrivate ?? req.user.isPrivate,
+        isPrivate: isPrivate !== undefined ? isPrivate === "true" || isPrivate === true : req.user.isPrivate,
       },
-      {
-        new: true,
-        select: "-password",
-      }
-    ).populate("contacts", "fullname avatar");
+      { new: true, select: "-password" }
+    ).populate("post", "mediaUrl type caption _id createdAt");
 
     res.status(200).json(updatedUser);
   } catch (error) {
-    console.error("❌ updateProfile error:", error.message);
+    console.error("updateProfile error:", error.message);
     res.status(500).json({ error: error.message });
   }
 };

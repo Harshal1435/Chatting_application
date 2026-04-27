@@ -28,7 +28,9 @@ export const CallProvider = ({ children }) => {
   const remoteUserIdRef  = useRef(null); // always-current ref for closures
   const activeCallIdRef  = useRef(null);
 
-  // ── 1-1 Call State ────────────────────────────────────────────────────────
+  // ── Track version counter — incremented when remote tracks arrive ─────────
+  // This lets CallModal know to re-attach srcObject without causing video flicker.
+  const [remoteTrackVersion, setRemoteTrackVersion] = useState(0);
   const [incomingCall,   setIncomingCall]   = useState(null);
   const [activeCall,     setActiveCall]     = useState(false);
   const [callType,       setCallType]       = useState(null);
@@ -99,6 +101,8 @@ export const CallProvider = ({ children }) => {
           remoteStream.current.addTrack(track);
         }
       });
+      // Signal the UI that new tracks arrived so it can re-attach srcObject
+      setRemoteTrackVersion((v) => v + 1);
     };
 
     pc.oniceconnectionstatechange = () => {
@@ -492,7 +496,7 @@ export const CallProvider = ({ children }) => {
   return (
     <CallContext.Provider value={{
       // 1-1
-      localStream, remoteStream,
+      localStream, remoteStream, remoteTrackVersion,
       incomingCall, activeCall, callType, isCaller, remoteUserId,
       callDuration, callStatus, isVideoOn, isMuted, isScreenSharing,
       startCall, acceptCall, rejectCall, endCall,

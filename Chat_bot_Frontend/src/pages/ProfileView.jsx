@@ -1,52 +1,105 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FaUserEdit, FaUserPlus, FaUserMinus, FaCheck, FaTimes } from 'react-icons/fa';
-import { FiImage, FiBookmark, FiSettings, FiCamera } from 'react-icons/fi';
+import { FaUserEdit, FaUserPlus, FaUserMinus, FaCheck, FaTimes, FaLock } from 'react-icons/fa';
+import { FiImage, FiBookmark, FiCamera, FiArrowLeft } from 'react-icons/fi';
 import { useAuth } from '../context/AuthProvider';
+import toast from 'react-hot-toast';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const DEFAULT_AVATAR = 'https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png';
+
+// Safe token getter
+const getToken = () => {
+  try {
+    const raw = localStorage.getItem('token');
+    if (!raw) return null;
+    return raw.startsWith('"') ? JSON.parse(raw) : raw;
+  } catch { return null; }
+};
 
 const ProfileView = () => {
-  const { userId } = useParams();
-  const [authUser] = useAuth();
-  const token = (() => { try { return JSON.parse(localStorage.getItem('token')); } catch { return null; } })();
+  const { userId }   = useParams();
+  const navigate     = useNavigate();
+  const [authUser]   = useAuth();
+  const loggedInUser = authUser?.user;
 
-  const [profileUser, setProfileUser]   = useState(null);
-  const [loggedInUser, setLoggedInUser] = useState(null);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState(null);
-  const [activeTab, setActiveTab]       = useState('posts');
-  const [isEditOpen, setIsEditOpen]     = useState(false);
-  const [isFollowing, setIsFollowing]   = useState(false);
-  const [hasRequested, setHasRequested] = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState(null);
-  const [formData, setFormData] = useState({ fullname: '', isPrivate: false, avatar: null });
+  const [profileUser,    setProfileUser]    = useState(null);
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState(null);
+  const [activeTab,      setActiveTab]      = useState('posts');
+  const [isEditOpen,     setIsEditOpen]     = useState(false);
+  const [isFollowing,    setIsFollowing]    = useState(false);
+  const [hasRequested,   setHasRequested]   = useState(false);
+  const [avatarPreview,  setAvatarPreview]  = useState(null);
+  const [formData,       setFormData]       = useState({ fullname: '', isPrivate: false, avatar: null });
   const fileInputRef = useRef(null);
 
-  const headers = { Authorization: `Bearer ${token}` };
+  const headers = () => ({ Authorization: `Bearer ${getToken()}` });
 
-  useEffect(() => { setLoggedInUser(authUser?.user); }, [authUser]);
+  // ── Fetch profile ──────────────────────────────────────────────────────────
+  const fetchProfile = async () => {
+    try {
+      const { data } = await axios.get(`${BASE_URL}/api/user/profile/${userId}`, { headers: headers() });
+      setProfileUser(data);
+
+      if (loggedInUser && loggedInUser._id !== userId) {
+        setIsFollowing(data.followers?.some(f => (f._id || f) === loggedInUser._id));
+        setHasRequested(data.followRequests?.some(r => (r._id || r) === loggedInUser._id));
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!token) return;
-    const fetch = async () => {
-      try {
-        const { data } = await axios.get(`${BASE_URL}/api/user/profile/${userId}`, { headers });
-        setProfileUser(data);
-        if (loggedInUser && loggedInUser._id !== userId) {
-          setIsFollowing(data.followers.some(f => f._id === loggedInUser._id));
-          setHasRequested(data.followRequests.includes(loggedInUser._id));
-        }
-      } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load profile');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
-  }, [userId, loggedInUser, token]);
+    if (!loggedInUser) return;
+    fetchProfile();
+  }, [userId, loggedInUser?._id]);
 
+  // ── Follow ─────────────────────────────────────────────────────────────────
+  const handleFollow = async () => {
+    try {
+      await axios.post(
+        `${BASE_URL}/api/user/follow`,
+        { targetUserId: userId },
+        { headers: { ...headers(), 'Content-Type': 'application/json' } }
+      );
+      if (profileUser.isPrivate) {
+        setHasRequested(true);
+        toast.success('Follow request sent');
+      } else {
+        setIsFollowing(true);
+        setProfileUser(p => ({ ...p, followers: [...(p.followers || []), { _id: loggedInUser._id }] }));
+        toast.success('Following');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to follow');
+    }
+  };
+
+  // ── Unfollow ───────────────────────────────────────────────────────────────
+  const handleUnfollow = async () => {
+    try {
+      await axios.post(
+        `${BASE_URL}/api/user/unfollow/${userId}`,
+        {},
+        { headers: headers() }
+      );
+      setIsFollowing(false);
+      setProfileUser(p => ({
+        ...p,
+        followers: p.followers.filter(f => (f._id || f) !== loggedInUser._id),
+      }));
+      toast.success('Unfollowed');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to unfollow');
+    }
+  };
+
+  // ── Edit profile ───────────────────────────────────────────────────────────
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -56,26 +109,6 @@ const ProfileView = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleFollow = async () => {
-    try {
-      await axios.post(`${BASE_URL}/api/user/follow`, { targetUserId: userId }, { headers: { ...headers, 'Content-Type': 'application/json' } });
-      if (profileUser.isPrivate) {
-        setHasRequested(true);
-      } else {
-        setIsFollowing(true);
-        setProfileUser(p => ({ ...p, followers: [...p.followers, { _id: loggedInUser._id }] }));
-      }
-    } catch (_) {}
-  };
-
-  const handleUnfollow = async () => {
-    try {
-      await axios.post(`${BASE_URL}/api/user/unfollow/${userId}`, {}, { headers });
-      setIsFollowing(false);
-      setProfileUser(p => ({ ...p, followers: p.followers.filter(f => f._id !== loggedInUser._id) }));
-    } catch (_) {}
-  };
-
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -83,13 +116,22 @@ const ProfileView = () => {
       fd.append('fullname', formData.fullname || profileUser.fullname);
       fd.append('isPrivate', formData.isPrivate);
       if (formData.avatar) fd.append('avatar', formData.avatar);
-      const { data } = await axios.put(`${BASE_URL}/api/user/profile/${userId}`, fd, { headers });
+
+      const { data } = await axios.put(
+        `${BASE_URL}/api/user/profile/${userId}`,
+        fd,
+        { headers: headers() }
+      );
       setProfileUser(data);
       setIsEditOpen(false);
       setAvatarPreview(null);
-    } catch (_) {}
+      toast.success('Profile updated');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Update failed');
+    }
   };
 
+  // ── Render states ──────────────────────────────────────────────────────────
   if (loading) return (
     <div className="flex justify-center items-center h-screen bg-white dark:bg-gray-900">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" />
@@ -97,26 +139,37 @@ const ProfileView = () => {
   );
 
   if (error) return (
-    <div className="flex justify-center items-center h-screen bg-white dark:bg-gray-900">
-      <p className="text-red-500 text-lg">{error}</p>
+    <div className="flex flex-col justify-center items-center h-screen bg-white dark:bg-gray-900 gap-4">
+      <p className="text-red-500">{error}</p>
+      <button onClick={() => navigate(-1)} className="text-blue-500 text-sm hover:underline">Go back</button>
     </div>
   );
 
-  const isOwner = loggedInUser?._id === userId;
+  const isOwner         = loggedInUser?._id === userId;
+  const isPrivateHidden = profileUser?.isPrivateBlocked;
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 py-6">
 
-        {/* ── Profile Header ── */}
+        {/* Back */}
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-6 transition-colors"
+        >
+          <FiArrowLeft /> Back
+        </button>
+
+        {/* ── Header ── */}
         <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-10">
           {/* Avatar */}
           <div className="relative group flex-shrink-0">
-            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+            <div className="w-32 h-32 md:w-36 md:h-36 rounded-full overflow-hidden border-2 border-gray-200 dark:border-gray-700">
               <img
-                src={avatarPreview || profileUser?.avatar || 'https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png'}
+                src={avatarPreview || profileUser?.avatar || DEFAULT_AVATAR}
                 alt={profileUser?.fullname}
                 className="w-full h-full object-cover"
+                onError={(e) => { e.target.src = DEFAULT_AVATAR; }}
               />
             </div>
             {isOwner && (
@@ -135,30 +188,50 @@ const ProfileView = () => {
           {/* Info */}
           <div className="flex-1 space-y-4 text-center md:text-left">
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
-              <h1 className="text-2xl font-light">{profileUser?.fullname}</h1>
+              <h1 className="text-2xl font-light flex items-center gap-2">
+                {profileUser?.fullname}
+                {profileUser?.isPrivate && !isOwner && (
+                  <FaLock className="text-gray-400 text-sm" title="Private account" />
+                )}
+              </h1>
 
               {isOwner ? (
                 <>
                   <button
-                    onClick={() => { setFormData({ fullname: profileUser.fullname, isPrivate: profileUser.isPrivate, avatar: null }); setIsEditOpen(true); }}
+                    onClick={() => {
+                      setFormData({ fullname: profileUser.fullname, isPrivate: profileUser.isPrivate, avatar: null });
+                      setIsEditOpen(true);
+                    }}
                     className="px-4 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
                   >
                     <FaUserEdit /> Edit Profile
                   </button>
-                  <Link to="/create-post" className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+                  <Link
+                    to="/create-post"
+                    className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
                     + Post
                   </Link>
                 </>
               ) : isFollowing ? (
-                <button onClick={handleUnfollow} className="px-4 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                <button
+                  onClick={handleUnfollow}
+                  className="px-4 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                >
                   <FaUserMinus /> Following
                 </button>
               ) : hasRequested ? (
-                <button disabled className="px-4 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-medium flex items-center gap-2 opacity-60">
+                <button
+                  disabled
+                  className="px-4 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-medium flex items-center gap-2 opacity-60 cursor-not-allowed"
+                >
                   <FaCheck /> Requested
                 </button>
               ) : (
-                <button onClick={handleFollow} className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                <button
+                  onClick={handleFollow}
+                  className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                >
                   <FaUserPlus /> Follow
                 </button>
               )}
@@ -166,47 +239,93 @@ const ProfileView = () => {
 
             {/* Stats */}
             <div className="flex justify-center md:justify-start gap-8 text-sm">
-              <div><span className="font-semibold">{profileUser?.post?.length || 0}</span> <span className="text-gray-500 dark:text-gray-400">posts</span></div>
-              <div><span className="font-semibold">{profileUser?.followers?.length || 0}</span> <span className="text-gray-500 dark:text-gray-400">followers</span></div>
-              <div><span className="font-semibold">{profileUser?.following?.length || 0}</span> <span className="text-gray-500 dark:text-gray-400">following</span></div>
+              <div>
+                <span className="font-semibold">{isPrivateHidden ? '—' : (profileUser?.post?.length || 0)}</span>{' '}
+                <span className="text-gray-500 dark:text-gray-400">posts</span>
+              </div>
+              <div>
+                <span className="font-semibold">{profileUser?.followers?.length || 0}</span>{' '}
+                <span className="text-gray-500 dark:text-gray-400">followers</span>
+              </div>
+              <div>
+                <span className="font-semibold">{profileUser?.following?.length || 0}</span>{' '}
+                <span className="text-gray-500 dark:text-gray-400">following</span>
+              </div>
             </div>
 
-            {profileUser?.bio && <p className="text-gray-600 dark:text-gray-400 text-sm">{profileUser.bio}</p>}
+            {profileUser?.bio && (
+              <p className="text-gray-600 dark:text-gray-400 text-sm">{profileUser.bio}</p>
+            )}
           </div>
         </div>
 
-        {/* ── Tabs ── */}
-        <div className="border-t border-gray-200 dark:border-gray-700">
-          <div className="flex justify-center gap-12">
-            {[{ id: 'posts', icon: <FiImage />, label: 'POSTS' }, { id: 'saved', icon: <FiBookmark />, label: 'SAVED' }].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 py-4 px-1 border-t-2 text-sm font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white'
-                    : 'border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
-                }`}
-              >
-                {tab.icon} {tab.label}
-              </button>
-            ))}
+        {/* ── Private account wall ── */}
+        {isPrivateHidden ? (
+          <div className="flex flex-col items-center justify-center py-16 border-t border-gray-200 dark:border-gray-700 text-center">
+            <FaLock className="text-gray-300 dark:text-gray-600 text-4xl mb-4" />
+            <p className="font-semibold text-gray-700 dark:text-gray-300">This account is private</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+              Follow this account to see their posts.
+            </p>
           </div>
-        </div>
-
-        {/* ── Posts Grid ── */}
-        <div className="grid grid-cols-3 gap-1 mt-4">
-          {profileUser?.post?.map(post => (
-            <Link key={post._id} to={`/posts/${post._id}`} className="aspect-square bg-gray-100 dark:bg-gray-800 overflow-hidden group">
-              <img src={post.mediaUrl} alt={post.caption} className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" />
-            </Link>
-          ))}
-          {(!profileUser?.post || profileUser.post.length === 0) && (
-            <div className="col-span-3 py-16 text-center text-gray-400 dark:text-gray-500">
-              No posts yet
+        ) : (
+          <>
+            {/* ── Tabs ── */}
+            <div className="border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-center gap-12">
+                {[
+                  { id: 'posts', icon: <FiImage />, label: 'POSTS' },
+                  { id: 'saved', icon: <FiBookmark />, label: 'SAVED' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 py-4 px-1 border-t-2 text-sm font-medium transition-colors ${
+                      activeTab === tab.id
+                        ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white'
+                        : 'border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    {tab.icon} {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
-        </div>
+
+            {/* ── Posts Grid ── */}
+            <div className="grid grid-cols-3 gap-1 mt-1">
+              {profileUser?.post?.length > 0 ? (
+                profileUser.post.map(post => (
+                  <Link
+                    key={post._id}
+                    to={`/posts/${post._id}`}
+                    className="aspect-square bg-gray-100 dark:bg-gray-800 overflow-hidden group relative"
+                  >
+                    {post.type === 'image' || post.type === 'video' ? (
+                      <img
+                        src={post.mediaUrl}
+                        alt={post.caption || ''}
+                        className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    ) : (
+                      // Text post tile
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-700 dark:to-gray-800 p-3">
+                        <p className="text-xs text-gray-700 dark:text-gray-300 text-center line-clamp-4">
+                          {post.content || post.caption}
+                        </p>
+                      </div>
+                    )}
+                  </Link>
+                ))
+              ) : (
+                <div className="col-span-3 py-16 text-center text-gray-400 dark:text-gray-500">
+                  No posts yet
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Edit Modal ── */}
@@ -215,7 +334,10 @@ const ProfileView = () => {
           <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl">
             <div className="flex justify-between items-center mb-5">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Profile</h2>
-              <button onClick={() => setIsEditOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+              <button
+                onClick={() => { setIsEditOpen(false); setAvatarPreview(null); }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              >
                 <FaTimes />
               </button>
             </div>
@@ -225,14 +347,26 @@ const ProfileView = () => {
               <div className="flex flex-col items-center gap-3">
                 <div className="relative">
                   <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200 dark:border-gray-600">
-                    <img src={avatarPreview || profileUser?.avatar || 'https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png'} alt="preview" className="w-full h-full object-cover" />
+                    <img
+                      src={avatarPreview || profileUser?.avatar || DEFAULT_AVATAR}
+                      alt="preview"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                  <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 bg-blue-500 text-white p-1.5 rounded-full hover:bg-blue-600 transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 bg-blue-500 text-white p-1.5 rounded-full hover:bg-blue-600 transition-colors"
+                  >
                     <FiCamera className="text-xs" />
                   </button>
                 </div>
                 {avatarPreview && (
-                  <button type="button" onClick={() => { setAvatarPreview(null); setFormData(f => ({ ...f, avatar: null })); }} className="text-xs text-red-500 hover:text-red-600">
+                  <button
+                    type="button"
+                    onClick={() => { setAvatarPreview(null); setFormData(f => ({ ...f, avatar: null })); }}
+                    className="text-xs text-red-500 hover:text-red-600"
+                  >
                     Remove photo
                   </button>
                 )}
@@ -249,7 +383,7 @@ const ProfileView = () => {
                 />
               </div>
 
-              {/* Private */}
+              {/* Private toggle */}
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -257,14 +391,24 @@ const ProfileView = () => {
                   onChange={(e) => setFormData(f => ({ ...f, isPrivate: e.target.checked }))}
                   className="w-4 h-4 accent-blue-500"
                 />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Private Account</span>
+                <div>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Private Account</span>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">Only followers can see your posts</p>
+                </div>
               </label>
 
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setIsEditOpen(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                <button
+                  type="button"
+                  onClick={() => { setIsEditOpen(false); setAvatarPreview(null); }}
+                  className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                >
                   Save Changes
                 </button>
               </div>
