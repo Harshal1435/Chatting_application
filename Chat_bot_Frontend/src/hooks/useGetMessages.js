@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import useConversation from "../statemanage/useConversation.js";
+import useConversation from "../store/useConversation.js";
 import axios from "axios";
 import Cookies from "js-cookie";
-import { useAuth } from "./AuthProvider.jsx";
+import { useAuth } from "../context/AuthProvider.jsx";
 
 const useGetMessage = () => {
   const [loading, setLoading] = useState(false);

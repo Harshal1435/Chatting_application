@@ -1,6 +1,6 @@
 import React from "react";
-import useConversation from "../../statemanage/useConversation";
-import { useSocketContext } from "../../context/SocketContext";
+import useConversation from "../../../store/useConversation";
+import { useSocketContext } from "../../../context/SocketContext";
 import { motion } from "framer-motion";
 
 const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png";

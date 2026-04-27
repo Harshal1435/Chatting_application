@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { IoSend } from "react-icons/io5";
 import { FaSmile } from "react-icons/fa";
-import useSendMessage from "../../context/useSendMessage";
-import { useSocketContext } from "../../context/SocketContext";
-import useConversation from "../../statemanage/useConversation";
+import useSendMessage from "../../../hooks/useSendMessage";
+import { useSocketContext } from "../../../context/SocketContext";
+import useConversation from "../../../store/useConversation";
 
 function Typesend() {
   const [message, setMessage] = useState("");

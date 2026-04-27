@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import User from "./User";
-import useGetAllUsers from "../../context/useGetAllUsers";
-import LoadingSpinner from "../LoadingSpinner";
+import { useState } from "react";
+import UserItem from "./UserItem";
+import useGetAllUsers from "../../../hooks/useGetAllUsers";
+import LoadingSpinner from "../../ui/LoadingSpinner";
 import { FaSearch, FaTimes } from "react-icons/fa";
 import { BsPeopleFill } from "react-icons/bs";
 
@@ -65,7 +65,7 @@ function Users() {
           </div>
         ) : (
           filtered.map((user, index) => (
-            <User key={user._id || index} user={user} />
+            <UserItem key={user._id || index} user={user} />
           ))
         )}
       </div>

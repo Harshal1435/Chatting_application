@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { FaSearch, FaTimes } from "react-icons/fa";
-import useGetAllUsers from "../../context/useGetAllUsers";
-import useConversation from "../../statemanage/useConversation";
+import useGetAllUsers from "../../../hooks/useGetAllUsers";
+import useConversation from "../../../store/useConversation";
 import toast from "react-hot-toast";
 
 function Search() {

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useCallContext } from "../context/CallContext";
+import { useCallContext } from "../../context/CallContext";
 import { FaPhoneAlt, FaPhoneSlash } from "react-icons/fa";
 import { BsCameraVideoFill, BsMicFill } from "react-icons/bs";
 import { motion, AnimatePresence } from "framer-motion";

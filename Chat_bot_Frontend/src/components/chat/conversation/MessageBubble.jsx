@@ -1,17 +1,13 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FaCheck, FaCheckDouble } from "react-icons/fa";
-import { useSocketContext } from "../../context/SocketContext";
-import useSeenMessage from "../../context/useSeenMessage";
-import { decryptText } from "../../utils/cryptoUtils";
+import { useSocketContext } from "../../../context/SocketContext";
+import useSeenMessage from "../../../hooks/useSeenMessage";
+import { decryptText } from "../../../utils/cryptoUtils";
 import { motion } from "framer-motion";
-
-const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png";
 
 function Message({ message }) {
   const [decryptedText, setDecryptedText] = useState(null);
   const authUser = JSON.parse(localStorage.getItem("ChatApp"));
-  const { socket } = useSocketContext();
-
   const isMe = message.senderId === authUser.user._id;
 
   const createdAt = new Date(message.createdAt);

@@ -1,21 +1,21 @@
-import React, { useState } from "react";
-import Left from "./home/Leftpart/Left";
-import Right from "./home/Rightpart/Right";
+import { useState } from "react";
+import Left from "./components/chat/sidebar/Sidebar";
+import Right from "./components/chat/conversation/ChatWindow";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import { useAuth } from "./context/AuthProvider";
 import { Toaster } from "react-hot-toast";
 import { Navigate, Route, Routes } from "react-router-dom";
-import useConversation from "./statemanage/useConversation";
-import CallModal from "./components/CallModal";
-import IncomingCallModal from "./components/IncomingCallModal";
-import GroupCallModal from "./components/GroupCallModal";
+import useConversation from "./store/useConversation";
+import CallModal from "./components/call/CallModal";
+import IncomingCallModal from "./components/call/IncomingCallModal";
+import GroupCallModal from "./components/call/GroupCallModal";
 import { ThemeProvider } from "./context/ThemeContext";
-import StatusList from "./components/Status/StatusList";
-import ProfileView from "./components/ProfileView";
-import Notifications from "./components/notification";
-import CreatePost from "./components/CreatePost";
-import PostView from "./components/PostView";
+import StatusList from "./components/status/StatusList";
+import ProfileView from "./pages/ProfileView";
+import Notifications from "./pages/Notifications";
+import CreatePost from "./pages/CreatePost";
+import PostView from "./pages/PostView";
 
 function App() {
   const [authUser] = useAuth();

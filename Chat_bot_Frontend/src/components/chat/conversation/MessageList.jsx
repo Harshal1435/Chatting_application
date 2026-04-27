@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
-import Message from "./Message";
-import useGetMessage from "../../context/useGetMessage.js";
-import useGetSocketMessage from "../../context/useGetSocketMessage.js";
-import useGetSocketSeenMessage from "../../context/useGetSocketSeenMessage.js";
-import LoadingSpinner from "../../home/LoadingSpinner.jsx";
+import MessageBubble from "./MessageBubble";
+import useGetMessages from "../../../hooks/useGetMessages.js";
+import useGetSocketMessage from "../../../hooks/useGetSocketMessage.js";
+import useGetSocketSeenMessage from "../../../hooks/useGetSocketSeenMessage.js";
+import LoadingSpinner from "../../ui/LoadingSpinner.jsx";
 import { FiMessageSquare } from "react-icons/fi";
 import { MdKeyboardArrowDown } from "react-icons/md";
-import useConversation from "../../statemanage/useConversation.js";
+import useConversation from "../../../store/useConversation.js";
 
 function Messages() {
-  const { loading, messages } = useGetMessage();
+  const { loading, messages } = useGetMessages();
   const { selectedConversation } = useConversation();
   const [isAtBottom, setIsAtBottom] = useState(true);
   const messagesEndRef = useRef(null);
@@ -80,7 +80,7 @@ function Messages() {
                   </span>
                 </div>
                 {msgs.map((msg) => (
-                  <Message key={msg._id} message={msg} />
+                  <MessageBubble key={msg._id} message={msg} />
                 ))}
               </div>
             ))}

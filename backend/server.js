@@ -11,61 +11,55 @@ import postRoute from "./routes/userPost.route.js";
 
 dotenv.config();
 
-// middleware
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://chatting-application-mu.vercel.app",
+  "https://chatting-application-1.netlify.app",
+];
+
+// ── Middleware ────────────────────────────────────────────────────────────────
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors());
-  const allowedOrigins = [
-        "http://localhost:5173",
-        "https://chatting-application-mu.vercel.app",
-        "https://chatting-application-1.netlify.app",
-      ];
+
+// Single, correctly-configured CORS (no duplicate)
 app.use(
   cors({
     origin: (origin, callback) => {
-    
-
+      // Allow requests with no origin (mobile apps, curl, Postman)
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("CORS not allowed"));
+        callback(new Error(`CORS blocked for origin: ${origin}`));
       }
     },
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-// app.use((req, res, next) => {
-//   res.setHeader('Access-Control-Allow-Origin', allowedOrigins);
-//   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-//   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-//   res.setHeader('Access-Control-Allow-Credentials', 'true');
-//   if (req.method === 'OPTIONS') {
-//     res.sendStatus(200);
-//   } else {
-//     next();
-//   }
-// });
 
+// ── Database ──────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-const URI = process.env.MONGODB_URI;
+const URI  = process.env.MONGODB_URI;
 
-try {
-    mongoose.connect(URI);
-    console.log("Connected to MongoDB");
-} catch (error) {
-    console.log(error);
-}
+mongoose
+  .connect(URI)
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err.message);
+    process.exit(1);
+  });
 
-
-
-
-//routes
-app.use("/api/user", userRoute);
+// ── Routes ────────────────────────────────────────────────────────────────────
+app.use("/api/user",    userRoute);
 app.use("/api/message", messageRoute);
-app.use("/api/status", StatusRoute);
-app.use("/api/post", postRoute)
+app.use("/api/status",  StatusRoute);
+app.use("/api/post",    postRoute);
+
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get("/health", (_req, res) => res.json({ status: "ok" }));
+
+// ── Start ─────────────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
-    console.log(`Server is Running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

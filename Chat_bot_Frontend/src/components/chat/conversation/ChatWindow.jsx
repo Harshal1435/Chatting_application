@@ -1,9 +1,9 @@
 import React from "react";
-import Chatuser from "./Chatuser";
-import Messages from "./Messages";
-import Typesend from "./Typesend";
-import useConversation from "../../statemanage/useConversation";
-import { useAuth } from "../../context/AuthProvider";
+import ChatHeader from "./ChatHeader";
+import MessageList from "./MessageList";
+import MessageInput from "./MessageInput";
+import useConversation from "../../../store/useConversation";
+import { useAuth } from "../../../context/AuthProvider";
 import { BsChatDotsFill } from "react-icons/bs";
 
 function Right({ activeTab }) {
@@ -15,9 +15,9 @@ function Right({ activeTab }) {
         <NoChatSelected />
       ) : (
         <>
-          <Chatuser />
-          <Messages />
-          <Typesend />
+          <ChatHeader />
+          <MessageList />
+          <MessageInput />
         </>
       )}
     </div>

@@ -3,7 +3,7 @@ import { BsPeopleFill, BsCameraVideo } from "react-icons/bs";
 import { FaCircle, FaMicrophone } from "react-icons/fa";
 import { IoMdNotifications } from "react-icons/io";
 import { useState } from "react";
-import { useTheme } from "../context/ThemeContext";
+import { useTheme } from "../../context/ThemeContext";
 import { Link, useLocation } from "react-router-dom";
 
 const BottomNav = ({ unreadCount = 0 }) => {

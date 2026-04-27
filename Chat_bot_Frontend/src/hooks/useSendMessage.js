@@ -1,5 +1,5 @@
 import { useState } from "react";
-import useConversation from "../statemanage/useConversation.js";
+import useConversation from "../store/useConversation.js";
 import axios from "axios";
 import { encryptText } from "../utils/cryptoUtils";
 import { useAuth } from "./AuthProvider.jsx";

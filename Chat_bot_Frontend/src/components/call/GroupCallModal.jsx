@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { useCallContext } from "../context/CallContext";
+import { useCallContext } from "../../context/CallContext";
 import {
   FaPhoneSlash, FaMicrophone, FaMicrophoneSlash,
   FaVideo, FaVideoSlash,

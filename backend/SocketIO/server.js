@@ -24,23 +24,41 @@ const io = new Server(server, {
 });
 
 // ─── State ────────────────────────────────────────────────────────────────────
-const users = {};        // userId → socketId  (1-1 calls / DMs)
-const activeCalls = {};  // callId → call meta  (1-1 calls)
-const groupCalls = {};   // roomId → { participants: Set<userId>, callType }
+// userId → Set<socketId>  — supports multiple tabs / reconnects per user
+const userSockets = {};   // userId → Set<socketId>
+const activeCalls = {};
+const groupCalls  = {};
 
-export const getReceiverSocketId = (receiverId) => users[receiverId];
+export const getReceiverSocketId = (receiverId) => {
+  const sockets = userSockets[receiverId];
+  if (!sockets || sockets.size === 0) return null;
+  // Return the most-recently added socket (last in Set iteration order)
+  return [...sockets].at(-1);
+};
+
+const getOnlineUserIds = () => Object.keys(userSockets).filter(
+  (uid) => userSockets[uid]?.size > 0
+);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const broadcastOnlineUsers = () => io.emit("getOnlineUsers", Object.keys(users));
+const broadcastOnlineUsers = () =>
+  io.emit("getOnlineUsers", getOnlineUserIds());
 
 // ─── Connection ───────────────────────────────────────────────────────────────
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
+
   if (userId) {
-    users[userId] = socket.id;
+    if (!userSockets[userId]) userSockets[userId] = new Set();
+    userSockets[userId].add(socket.id);
     socket.userId = userId;
     broadcastOnlineUsers();
   }
+
+  // Client can request the current online list (e.g. after reconnect)
+  socket.on("get-online-users", () => {
+    socket.emit("getOnlineUsers", getOnlineUserIds());
+  });
 
   // ── Messaging ──────────────────────────────────────────────────────────────
 
@@ -48,43 +66,51 @@ io.on("connection", (socket) => {
     const { senderId, receiverId, encryptedMessage, iv } = messageData;
     if (!senderId || !receiverId || !encryptedMessage || !iv) return;
 
-    const isDelivered = Boolean(users[receiverId]);
+    const isDelivered = Boolean(getReceiverSocketId(receiverId));
     const newMessage = await Message.create({
       senderId, receiverId, message: encryptedMessage, iv, delivered: isDelivered,
     });
 
-    if (users[receiverId]) io.to(users[receiverId]).emit("receive-message", newMessage);
-    if (users[senderId])   io.to(users[senderId]).emit("message-sent", newMessage);
+    const recvSocketId = getReceiverSocketId(receiverId);
+    const sendSocketId = getReceiverSocketId(senderId);
+    if (recvSocketId) io.to(recvSocketId).emit("newMessage", newMessage);
+    if (sendSocketId) io.to(sendSocketId).emit("message-sent", newMessage);
   });
 
   socket.on("mark-seen", async ({ messageId, senderId }) => {
     if (!messageId || !senderId) return;
     const updated = await Message.findByIdAndUpdate(messageId, { seen: true }, { new: true });
-    if (users[senderId]) io.to(users[senderId]).emit("message-seen", updated);
+    const sendSocketId = getReceiverSocketId(senderId);
+    if (sendSocketId) io.to(sendSocketId).emit("message-seen", updated);
   });
 
   // ── Typing ─────────────────────────────────────────────────────────────────
 
   socket.on("typing", ({ to }) => {
-    if (users[to]) io.to(users[to]).emit("user-typing", { from: socket.userId });
+    const sid = getReceiverSocketId(to);
+    if (sid) io.to(sid).emit("user-typing", { from: socket.userId });
   });
 
   socket.on("stop-typing", ({ to }) => {
-    if (users[to]) io.to(users[to]).emit("user-stop-typing", { from: socket.userId });
+    const sid = getReceiverSocketId(to);
+    if (sid) io.to(sid).emit("user-stop-typing", { from: socket.userId });
   });
 
   // ── Follow ─────────────────────────────────────────────────────────────────
 
   socket.on("follow-request", ({ toUserId, from }) => {
-    if (users[toUserId]) io.to(users[toUserId]).emit("new-follow-request", { from, type: "follow-request" });
+    const sid = getReceiverSocketId(toUserId);
+    if (sid) io.to(sid).emit("new-follow-request", { from, type: "follow-request" });
   });
 
   socket.on("follow-accepted", ({ fromUserId, toUserId }) => {
-    if (users[fromUserId]) io.to(users[fromUserId]).emit("follow-request-accepted", { by: toUserId });
+    const sid = getReceiverSocketId(fromUserId);
+    if (sid) io.to(sid).emit("follow-request-accepted", { by: toUserId });
   });
 
   socket.on("follow-rejected", ({ fromUserId, toUserId }) => {
-    if (users[fromUserId]) io.to(users[fromUserId]).emit("follow-request-rejected", { by: toUserId });
+    const sid = getReceiverSocketId(fromUserId);
+    if (sid) io.to(sid).emit("follow-request-rejected", { by: toUserId });
   });
 
   // ── Status ─────────────────────────────────────────────────────────────────
@@ -120,7 +146,7 @@ io.on("connection", (socket) => {
   // ── 1-1 WebRTC Calls ───────────────────────────────────────────────────────
 
   socket.on("call-user", async ({ from, to, offer, callType, callId }) => {
-    const receiverSocketId = users[to];
+    const receiverSocketId = getReceiverSocketId(to);
     if (!receiverSocketId) {
       socket.emit("call-failed", { message: "User is offline" });
       return;
@@ -138,10 +164,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("answer-call", async ({ callId, to, answer }) => {
-    const callerSocketId = users[to];
-    if (callerSocketId) {
-      io.to(callerSocketId).emit("call-accepted", { callId, answer });
-    }
+    const callerSocketId = getReceiverSocketId(to);
+    if (callerSocketId) io.to(callerSocketId).emit("call-accepted", { callId, answer });
     if (activeCalls[callId]) {
       activeCalls[callId].status = "connected";
       await Call.findOneAndUpdate({ callId }, { status: "connected", startedAt: new Date() }).catch(() => {});
@@ -149,7 +173,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("reject-call", async ({ callId, to }) => {
-    if (users[to]) io.to(users[to]).emit("call-rejected", { callId });
+    const sid = getReceiverSocketId(to);
+    if (sid) io.to(sid).emit("call-rejected", { callId });
     if (activeCalls[callId]) {
       await Call.findOneAndUpdate({ callId }, { status: "rejected", endedAt: new Date() }).catch(() => {});
       delete activeCalls[callId];
@@ -157,7 +182,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("end-call", async ({ callId, to }) => {
-    if (users[to]) io.to(users[to]).emit("call-ended", { callId });
+    const sid = getReceiverSocketId(to);
+    if (sid) io.to(sid).emit("call-ended", { callId });
     if (activeCalls[callId]) {
       await Call.findOneAndUpdate({ callId }, { status: "ended", endedAt: new Date() }).catch(() => {});
       delete activeCalls[callId];
@@ -165,7 +191,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("webrtc-ice-candidate", ({ to, candidate }) => {
-    if (users[to] && candidate) io.to(users[to]).emit("webrtc-ice-candidate", { candidate });
+    const sid = getReceiverSocketId(to);
+    if (sid && candidate) io.to(sid).emit("webrtc-ice-candidate", { candidate });
   });
 
   // ── Group Calls (mesh WebRTC) ──────────────────────────────────────────────
@@ -177,25 +204,16 @@ io.on("connection", (socket) => {
     const uid = socket.userId;
     if (!uid) return;
 
-    if (!groupCalls[roomId]) {
-      groupCalls[roomId] = { participants: new Set(), callType };
-    }
+    if (!groupCalls[roomId]) groupCalls[roomId] = { participants: new Set(), callType };
 
     const room = groupCalls[roomId];
-    const existingParticipants = [...room.participants];
+    const existing = [...room.participants];
 
-    // Tell the new joiner who is already in the room
-    socket.emit("group-call-existing-participants", {
-      roomId,
-      participants: existingParticipants,
-      callType: room.callType,
-    });
+    socket.emit("group-call-existing-participants", { roomId, participants: existing, callType: room.callType });
 
-    // Tell everyone already in the room that a new user joined
-    existingParticipants.forEach((peerId) => {
-      if (users[peerId]) {
-        io.to(users[peerId]).emit("group-call-user-joined", { roomId, userId: uid, callType: room.callType });
-      }
+    existing.forEach((peerId) => {
+      const sid = getReceiverSocketId(peerId);
+      if (sid) io.to(sid).emit("group-call-user-joined", { roomId, userId: uid, callType: room.callType });
     });
 
     room.participants.add(uid);
@@ -203,30 +221,27 @@ io.on("connection", (socket) => {
   });
 
   socket.on("group-offer", ({ roomId, to, offer, from }) => {
-    if (users[to]) io.to(users[to]).emit("group-offer", { roomId, from, offer });
+    const sid = getReceiverSocketId(to);
+    if (sid) io.to(sid).emit("group-offer", { roomId, from, offer });
   });
 
   socket.on("group-answer", ({ roomId, to, answer, from }) => {
-    if (users[to]) io.to(users[to]).emit("group-answer", { roomId, from, answer });
+    const sid = getReceiverSocketId(to);
+    if (sid) io.to(sid).emit("group-answer", { roomId, from, answer });
   });
 
   socket.on("group-ice-candidate", ({ roomId, to, candidate, from }) => {
-    if (users[to] && candidate) io.to(users[to]).emit("group-ice-candidate", { roomId, from, candidate });
+    const sid = getReceiverSocketId(to);
+    if (sid && candidate) io.to(sid).emit("group-ice-candidate", { roomId, from, candidate });
   });
 
   socket.on("leave-group-call", ({ roomId }) => {
     const uid = socket.userId;
     if (!uid || !groupCalls[roomId]) return;
-
     groupCalls[roomId].participants.delete(uid);
     socket.leave(`group-call-${roomId}`);
-
-    // Notify remaining participants
     io.to(`group-call-${roomId}`).emit("group-call-user-left", { roomId, userId: uid });
-
-    if (groupCalls[roomId].participants.size === 0) {
-      delete groupCalls[roomId];
-    }
+    if (groupCalls[roomId].participants.size === 0) delete groupCalls[roomId];
   });
 
   // ── Disconnect ─────────────────────────────────────────────────────────────
@@ -235,27 +250,36 @@ io.on("connection", (socket) => {
     const uid = socket.userId;
     if (!uid) return;
 
-    // Clean up 1-1 calls
-    for (const callId in activeCalls) {
-      const call = activeCalls[callId];
-      if (call.caller === uid || call.receiver === uid) {
-        const otherId = call.caller === uid ? call.receiver : call.caller;
-        if (users[otherId]) io.to(users[otherId]).emit("call-ended", { callId });
-        await Call.findOneAndUpdate({ callId }, { status: "missed", endedAt: new Date() }).catch(() => {});
-        delete activeCalls[callId];
+    // Remove this specific socket from the user's set
+    if (userSockets[uid]) {
+      userSockets[uid].delete(socket.id);
+      // Only mark user as offline when ALL their tabs/connections are gone
+      if (userSockets[uid].size === 0) {
+        delete userSockets[uid];
+
+        // Clean up 1-1 calls
+        for (const callId in activeCalls) {
+          const call = activeCalls[callId];
+          if (call.caller === uid || call.receiver === uid) {
+            const otherId = call.caller === uid ? call.receiver : call.caller;
+            const otherSid = getReceiverSocketId(otherId);
+            if (otherSid) io.to(otherSid).emit("call-ended", { callId });
+            await Call.findOneAndUpdate({ callId }, { status: "missed", endedAt: new Date() }).catch(() => {});
+            delete activeCalls[callId];
+          }
+        }
+
+        // Clean up group calls
+        for (const roomId in groupCalls) {
+          if (groupCalls[roomId].participants.has(uid)) {
+            groupCalls[roomId].participants.delete(uid);
+            io.to(`group-call-${roomId}`).emit("group-call-user-left", { roomId, userId: uid });
+            if (groupCalls[roomId].participants.size === 0) delete groupCalls[roomId];
+          }
+        }
       }
     }
 
-    // Clean up group calls
-    for (const roomId in groupCalls) {
-      if (groupCalls[roomId].participants.has(uid)) {
-        groupCalls[roomId].participants.delete(uid);
-        io.to(`group-call-${roomId}`).emit("group-call-user-left", { roomId, userId: uid });
-        if (groupCalls[roomId].participants.size === 0) delete groupCalls[roomId];
-      }
-    }
-
-    delete users[uid];
     broadcastOnlineUsers();
   });
 });

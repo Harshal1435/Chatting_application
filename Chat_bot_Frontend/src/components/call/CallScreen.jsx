@@ -1,6 +1,6 @@
 // src/components/CallScreen.jsx
 import React, { useEffect, useRef } from "react";
-import { useCallContext } from "../context/CallContext";
+import { useCallContext } from "../../context/CallContext";
 import { useNavigate } from "react-router-dom";
 
 const CallScreen = () => {

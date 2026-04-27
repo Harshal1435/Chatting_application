@@ -1,179 +1,142 @@
-import { useState, useRef, useEffect } from "react";
-import { X, Send, Camera, Smile, Pencil } from "lucide-react";
+import { useState, useRef } from "react";
+import { X, Image, Video, Send } from "lucide-react";
+import { createStatus } from "../../services/statusApi";
 import { useSocketContext } from "../../context/SocketContext";
-import { useAuth } from "../../context/AuthProvider";
-import axios from "axios";
+import toast from "react-hot-toast";
 
 const StatusCreator = ({ isOpen, onClose }) => {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [caption, setCaption] = useState("");
-  const [preview, setPreview] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [showCaptionInput, setShowCaptionInput] = useState(false);
+  const [file, setFile]         = useState(null);
+  const [preview, setPreview]   = useState(null);
+  const [caption, setCaption]   = useState("");
+  const [mediaType, setMediaType] = useState("image");
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
-  const captionInputRef = useRef(null);
-
   const { socket } = useSocketContext();
-  const { authUser } = useAuth();
 
-  const baseurl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const handleFileChange = (e) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
 
-  useEffect(() => {
-    if (showCaptionInput && captionInputRef.current) {
-      captionInputRef.current.focus();
-    }
-  }, [showCaptionInput]);
+    const isVideo = selected.type.startsWith("video/");
+    setMediaType(isVideo ? "video" : "image");
+    setFile(selected);
 
-  const resetForm = () => {
-    setSelectedFile(null);
-    setCaption("");
-    setPreview(null);
-    setShowCaptionInput(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    const reader = new FileReader();
+    reader.onload = (ev) => setPreview(ev.target.result);
+    reader.readAsDataURL(selected);
   };
 
-  const handleFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-      setPreview(URL.createObjectURL(file));
-    }
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!file) { toast.error("Please select a photo or video"); return; }
 
-  const handleCreateStatus = async () => {
-    if (!selectedFile) return;
-
-    setIsUploading(true);
-
+    setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("media", selectedFile);
-      formData.append("type", selectedFile.type.startsWith("video") ? "video" : "image");
-      if (caption) formData.append("caption", caption);
+      const fd = new FormData();
+      fd.append("media", file);
+      fd.append("caption", caption.trim());
+      fd.append("type", mediaType);
 
-      const token = JSON.parse(localStorage.getItem("token"));
-      if (!token) throw new Error("No token found");
+      const newStatus = await createStatus(fd);
 
-      const { data: result } = await axios.post(`${baseurl}/api/status`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Notify contacts via socket
+      if (socket) socket.emit("create-status", { status: newStatus });
 
-      socket?.emit("create-status", { status: result });
-      resetForm();
-      onClose();
-    } catch (error) {
-      console.error("Upload failed:", error);
-      alert("Failed to upload status");
+      toast.success("Status posted!");
+      handleClose();
+    } catch (err) {
+      toast.error(err?.message || "Failed to post status");
     } finally {
-      setIsUploading(false);
+      setUploading(false);
     }
+  };
+
+  const handleClose = () => {
+    setFile(null);
+    setPreview(null);
+    setCaption("");
+    onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-[#0b141a] flex items-center justify-center z-50">
-      <div className="relative w-full h-full max-h-screen flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-3 z-10 bg-[#202c33]">
-          <button 
-            onClick={onClose}
-            className="text-white p-1 rounded-full"
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Add Status</h2>
+          <button
+            onClick={handleClose}
+            className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
-            <X size={24} />
-          </button>
-          <h2 className="text-white font-medium">Status</h2>
-          <button 
-            onClick={handleCreateStatus}
-            disabled={isUploading}
-            className="text-white font-medium px-3 py-1 rounded-md bg-[#00a884] hover:bg-[#06cf9c] disabled:opacity-50"
-          >
-            {isUploading ? "Sending..." : "Send"}
+            <X size={18} />
           </button>
         </div>
 
-        {/* Status Preview */}
-        {preview ? (
-          <div className="flex-1 flex items-center justify-center relative overflow-hidden bg-black">
-            {selectedFile?.type.startsWith("image/") ? (
-              <img
-                src={preview}
-                alt="Status preview"
-                className="w-full h-full object-contain"
-              />
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {/* Media picker */}
+          {!preview ? (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full h-48 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center gap-3 text-gray-400 dark:text-gray-500 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-500 transition-colors"
+            >
+              <div className="flex gap-3">
+                <Image size={28} />
+                <Video size={28} />
+              </div>
+              <span className="text-sm font-medium">Tap to add photo or video</span>
+            </button>
+          ) : (
+            <div className="relative rounded-xl overflow-hidden bg-black">
+              {mediaType === "video" ? (
+                <video src={preview} className="w-full max-h-64 object-contain" controls />
+              ) : (
+                <img src={preview} alt="preview" className="w-full max-h-64 object-contain" />
+              )}
+              <button
+                type="button"
+                onClick={() => { setFile(null); setPreview(null); }}
+                className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full text-white hover:bg-black/80 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          {/* Caption */}
+          <input
+            type="text"
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            placeholder="Add a caption..."
+            maxLength={200}
+            className="w-full px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 border border-transparent focus:border-blue-400 dark:focus:border-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none text-sm transition-all"
+          />
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={!file || uploading}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 dark:disabled:bg-blue-800 text-white font-semibold text-sm transition-colors"
+          >
+            {uploading ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              <video
-                src={preview}
-                className="w-full h-full object-contain"
-                controls
-                autoPlay
-              />
+              <Send size={16} />
             )}
-
-            {/* Caption Input */}
-            {showCaptionInput && (
-              <div className="absolute bottom-20 left-0 right-0 px-4">
-                <div className="relative">
-                  <input
-                    ref={captionInputRef}
-                    type="text"
-                    value={caption}
-                    onChange={(e) => setCaption(e.target.value)}
-                    placeholder="Add a caption..."
-                    className="w-full bg-[#202c33] text-white p-3 rounded-md focus:outline-none pl-10 pr-4"
-                  />
-                  <Smile className="absolute left-3 top-3 text-gray-400" size={20} />
-                </div>
-              </div>
-            )}
-
-            {/* Bottom Controls */}
-            <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-4">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="p-3 bg-[#202c33] rounded-full hover:bg-[#2a3942]"
-              >
-                <Camera className="text-white" size={24} />
-              </button>
-              
-              <button
-                onClick={() => setShowCaptionInput(!showCaptionInput)}
-                className="p-3 bg-[#202c33] rounded-full hover:bg-[#2a3942]"
-              >
-                <Pencil className="text-white" size={24} />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 bg-[#0b141a]">
-            <div className="text-center space-y-6">
-              <div className="mx-auto w-16 h-16 rounded-full bg-[#202c33] flex items-center justify-center">
-                <Camera className="text-gray-400" size={32} />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-200">Share a photo or video</h2>
-              <p className="text-gray-400">Photos and videos will disappear after 24 hours</p>
-              
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="px-6 py-2 bg-[#00a884] text-white rounded-md hover:bg-[#06cf9c]"
-              >
-                Select from gallery
-              </button>
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-          </div>
-        )}
+            {uploading ? "Posting…" : "Post Status"}
+          </button>
+        </form>
       </div>
     </div>
   );
