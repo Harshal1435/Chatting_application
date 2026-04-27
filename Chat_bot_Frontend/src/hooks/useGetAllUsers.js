@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import axios from "axios";
-import { useAuth } from "./AuthProvider";
+import { useAuth } from "../context/AuthProvider";
 
 function useGetAllUsers() {
   const [authUser] = useAuth();

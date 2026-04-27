@@ -1,144 +1,195 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { Image, Video, FileText, X, ArrowLeft } from "lucide-react";
+import toast from "react-hot-toast";
+
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+// Safe token getter — never throws
+const getToken = () => {
+  try {
+    const raw = localStorage.getItem("token");
+    if (!raw) return null;
+    return raw.startsWith('"') ? JSON.parse(raw) : raw;
+  } catch (_) {
+    return null;
+  }
+};
+
+const POST_TYPES = [
+  { id: "text",  label: "Text",  icon: FileText },
+  { id: "image", label: "Image", icon: Image },
+  { id: "video", label: "Video", icon: Video },
+];
 
 const CreatePost = () => {
-  const [type, setType] = useState("text");
-  const [content, setContent] = useState("");
-  const [caption, setCaption] = useState("");
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-
-  const token = JSON.parse(localStorage.getItem("token"));
+  const navigate = useNavigate();
+  const [type, setType]         = useState("text");
+  const [content, setContent]   = useState("");
+  const [caption, setCaption]   = useState("");
+  const [file, setFile]         = useState(null);
+  const [preview, setPreview]   = useState(null);
+  const [loading, setLoading]   = useState(false);
 
   const handleFileChange = (e) => {
-    const selected = e.target.files[0];
+    const selected = e.target.files?.[0];
+    if (!selected) return;
     setFile(selected);
-    if (selected) {
-      setPreview(URL.createObjectURL(selected));
-    }
+    setPreview(URL.createObjectURL(selected));
+  };
+
+  const clearFile = () => {
+    setFile(null);
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (type !== "text" && !file) { toast.error("Please select a file"); return; }
+    if (type === "text" && !content.trim()) { toast.error("Write something first"); return; }
+
     setLoading(true);
-    setMessage("");
-
     try {
-      const formData = new FormData();
-      formData.append("type", type);
-      formData.append("caption", caption);
-      if (type === "text") {
-        formData.append("content", content);
-      } else if (file) {
-        formData.append("file", file);
-      }
+      const fd = new FormData();
+      fd.append("type", type);
+      fd.append("caption", caption.trim());
+      if (type === "text") fd.append("content", content.trim());
+      else if (file) fd.append("file", file);
 
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/post/createPost`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      await axios.post(`${BASE_URL}/api/post/createPost`, fd, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
-      setMessage("✅ Post created successfully!");
-      setContent("");
-      setCaption("");
-      setFile(null);
-      setPreview(null);
-      setType("text");
-    } catch (error) {
-      console.error(error);
-      setMessage(error.response?.data?.error || "❌ Failed to create post.");
+      toast.success("Post created!");
+      navigate("/");
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to create post");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto p-6 bg-white rounded-lg shadow-md mt-6">
-      <h2 className="text-2xl font-bold mb-4">Create New Post</h2>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+      <div className="max-w-xl mx-auto px-4 py-6">
 
-      {message && <p className="mb-4 text-sm text-center">{message}</p>}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Post Type */}
-        <div>
-          <label className="block mb-1 font-medium">Post Type</label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full border px-3 py-2 rounded"
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            <option value="text">Text</option>
-            <option value="image">Image</option>
-            <option value="video">Video</option>
-          </select>
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Create Post</h1>
         </div>
 
-        {/* Text Content */}
-        {type === "text" && (
-          <div>
-            <label className="block mb-1 font-medium">Content</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="w-full border px-3 py-2 rounded"
-              rows={4}
-              placeholder="Write your post..."
-              required
-            />
-          </div>
-        )}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
 
-        {/* File Upload */}
-        {(type === "image" || type === "video") && (
-          <div>
-            <label className="block mb-1 font-medium">Upload {type}</label>
-            <input
-              type="file"
-              accept={type === "image" ? "image/*" : "video/*"}
-              onChange={handleFileChange}
-              className="block w-full text-sm text-gray-700"
-              required
-            />
-            {preview && (
-              <div className="mt-3">
-                {type === "image" ? (
-                  <img src={preview} alt="Preview" className="h-40 object-cover rounded" />
+            {/* Type selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Post Type</label>
+              <div className="flex gap-2">
+                {POST_TYPES.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => { setType(id); clearFile(); setContent(""); }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      type === id
+                        ? "bg-blue-500 text-white shadow-sm"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    <Icon size={15} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Text content */}
+            {type === "text" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Content</label>
+                <textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  rows={5}
+                  placeholder="What's on your mind?"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border border-transparent focus:border-blue-400 dark:focus:border-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none text-sm resize-none transition-all"
+                />
+              </div>
+            )}
+
+            {/* File upload */}
+            {(type === "image" || type === "video") && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {type === "image" ? "Photo" : "Video"}
+                </label>
+                {!preview ? (
+                  <label className="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+                    {type === "image" ? <Image size={28} className="text-gray-400 mb-2" /> : <Video size={28} className="text-gray-400 mb-2" />}
+                    <span className="text-sm text-gray-400 dark:text-gray-500">Click to upload {type}</span>
+                    <input
+                      type="file"
+                      accept={type === "image" ? "image/*" : "video/*"}
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
                 ) : (
-                  <video controls src={preview} className="h-40 rounded" />
+                  <div className="relative rounded-xl overflow-hidden bg-black">
+                    {type === "image"
+                      ? <img src={preview} alt="preview" className="w-full max-h-64 object-contain" />
+                      : <video src={preview} controls className="w-full max-h-64" />}
+                    <button
+                      type="button"
+                      onClick={clearFile}
+                      className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full text-white hover:bg-black/80 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
                 )}
               </div>
             )}
-          </div>
-        )}
 
-        {/* Caption */}
-        <div>
-          <label className="block mb-1 font-medium">Caption (optional)</label>
-          <input
-            type="text"
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            className="w-full border px-3 py-2 rounded"
-            placeholder="Add a caption..."
-          />
+            {/* Caption */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Caption <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder="Add a caption…"
+                maxLength={200}
+                className="w-full px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 border border-transparent focus:border-blue-400 dark:focus:border-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none text-sm transition-all"
+              />
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 dark:disabled:bg-blue-800 text-white font-semibold text-sm transition-colors"
+            >
+              {loading
+                ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Posting…</>
+                : "Create Post"}
+            </button>
+          </form>
         </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition w-full"
-        >
-          {loading ? "Posting..." : "Create Post"}
-        </button>
-      </form>
+      </div>
     </div>
   );
 };

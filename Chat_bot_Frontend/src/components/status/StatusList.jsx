@@ -8,7 +8,6 @@ import LoadingSpinner from "../ui/LoadingSpinner";
 
 const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png";
 
-// Group flat statuses array by user
 const groupByUser = (statuses) => {
   const map = {};
   statuses.forEach((s) => {
@@ -24,31 +23,24 @@ const StatusList = ({ currentUser }) => {
   const [groups, setGroups]           = useState([]);
   const [loading, setLoading]         = useState(true);
   const [showCreator, setShowCreator] = useState(false);
-  const [viewing, setViewing]         = useState(null); // statusGroup being viewed
+  const [viewing, setViewing]         = useState(null);
   const { socket } = useSocketContext();
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchStatuses = async () => {
     try {
       const data = await getStatuses();
-      // API returns { count, statuses }
       const list = Array.isArray(data) ? data : data?.statuses ?? [];
       setGroups(groupByUser(list));
     } catch (_) {
-      // silently fail — empty state shown
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchStatuses();
-  }, []);
+  useEffect(() => { fetchStatuses(); }, []);
 
-  // ── Socket: new status from a contact ─────────────────────────────────────
   useEffect(() => {
     if (!socket) return;
-
     socket.emit("join-status-room");
 
     const onNewStatus = (newStatus) => {
@@ -58,9 +50,7 @@ const StatusList = ({ currentUser }) => {
         const existing = prev.find((g) => g.user._id === uid);
         if (existing) {
           return prev.map((g) =>
-            g.user._id === uid
-              ? { ...g, statuses: [newStatus, ...g.statuses] }
-              : g
+            g.user._id === uid ? { ...g, statuses: [newStatus, ...g.statuses] } : g
           );
         }
         return [{ user: newStatus.user, statuses: [newStatus] }, ...prev];
@@ -82,14 +72,12 @@ const StatusList = ({ currentUser }) => {
 
     socket.on("new-status",    onNewStatus);
     socket.on("status-viewed", onStatusViewed);
-
     return () => {
       socket.off("new-status",    onNewStatus);
       socket.off("status-viewed", onStatusViewed);
     };
   }, [socket]);
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
   const hasUnviewed = (group) =>
     group.statuses.some(
       (s) =>
@@ -99,34 +87,27 @@ const StatusList = ({ currentUser }) => {
 
   const formatTime = (ts) => {
     const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
-    if (diff < 60)    return `${diff}s ago`;
-    if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 60)   return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     return `${Math.floor(diff / 3600)}h ago`;
   };
 
-  // Separate own status from others
-  const myGroup   = groups.find((g) => g.user._id === currentUser?._id);
+  const myGroup     = groups.find((g) => g.user._id === currentUser?._id);
   const otherGroups = groups.filter((g) => g.user._id !== currentUser?._id);
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800">
-
-      {/* ── My Status ── */}
+      {/* My Status */}
       <div className="px-4 pt-4 pb-2">
         <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-3">
           My Status
         </p>
-        <button
-          onClick={() => setShowCreator(true)}
-          className="flex items-center gap-3 w-full group"
-        >
+        <button onClick={() => setShowCreator(true)} className="flex items-center gap-3 w-full">
           <div className="relative flex-shrink-0">
             <img
               src={currentUser?.avatar || DEFAULT_AVATAR}
               alt="me"
-              className={`w-12 h-12 rounded-full object-cover ${
-                myGroup ? "ring-2 ring-blue-500" : "ring-2 ring-gray-200 dark:ring-gray-600"
-              }`}
+              className={`w-12 h-12 rounded-full object-cover ${myGroup ? "ring-2 ring-blue-500" : "ring-2 ring-gray-200 dark:ring-gray-600"}`}
               onError={(e) => { e.target.src = DEFAULT_AVATAR; }}
             />
             <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800">
@@ -146,14 +127,14 @@ const StatusList = ({ currentUser }) => {
 
       <div className="border-t border-gray-100 dark:border-gray-700 mx-4" />
 
-      {/* ── Recent Updates ── */}
+      {/* Recent Updates */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex justify-center items-center h-32">
             <LoadingSpinner size="medium" />
           </div>
         ) : otherGroups.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
             <p className="text-gray-400 dark:text-gray-500 text-sm">No recent updates from contacts</p>
           </div>
         ) : (
@@ -174,11 +155,7 @@ const StatusList = ({ currentUser }) => {
                     <img
                       src={group.user.avatar || DEFAULT_AVATAR}
                       alt={group.user.fullname}
-                      className={`w-12 h-12 rounded-full object-cover ${
-                        unviewed
-                          ? "ring-2 ring-green-500"
-                          : "ring-2 ring-gray-200 dark:ring-gray-600"
-                      }`}
+                      className={`w-12 h-12 rounded-full object-cover ${unviewed ? "ring-2 ring-green-500" : "ring-2 ring-gray-200 dark:ring-gray-600"}`}
                       onError={(e) => { e.target.src = DEFAULT_AVATAR; }}
                     />
                     {unviewed && (
@@ -186,15 +163,12 @@ const StatusList = ({ currentUser }) => {
                     )}
                   </div>
                   <div className="flex-1 text-left min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {group.user.fullname}
-                    </p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{group.user.fullname}</p>
                     <p className="text-xs text-gray-400 dark:text-gray-500">
                       {formatTime(latest.createdAt)}
                       {group.statuses.length > 1 && ` · ${group.statuses.length} updates`}
                     </p>
                   </div>
-                  {/* Thumbnail */}
                   <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
                     {latest.mediaType === "video" ? (
                       <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">▶</div>
@@ -209,19 +183,8 @@ const StatusList = ({ currentUser }) => {
         )}
       </div>
 
-      {/* ── Modals ── */}
-      <StatusCreator
-        isOpen={showCreator}
-        onClose={() => { setShowCreator(false); fetchStatuses(); }}
-      />
-
-      {viewing && (
-        <StatusViewer
-          statusGroup={viewing}
-          currentUserId={currentUser?._id}
-          onClose={() => setViewing(null)}
-        />
-      )}
+      <StatusCreator isOpen={showCreator} onClose={() => { setShowCreator(false); fetchStatuses(); }} />
+      {viewing && <StatusViewer statusGroup={viewing} currentUserId={currentUser?._id} onClose={() => setViewing(null)} />}
     </div>
   );
 };

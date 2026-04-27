@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useSocketContext } from "./SocketContext";
+import { useSocketContext } from "../context/SocketContext";
 
 const useSeenMessage = (message, userId) => {
   const { socket } = useSocketContext();

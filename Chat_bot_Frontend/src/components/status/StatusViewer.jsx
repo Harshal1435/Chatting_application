@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { X, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { X, Eye } from "lucide-react";
 import { viewStatus } from "../../services/statusApi";
 import { useSocketContext } from "../../context/SocketContext";
 
 const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png";
-const STATUS_DURATION = 5000; // ms per status
+const STATUS_DURATION = 5000;
 
 const StatusViewer = ({ statusGroup, onClose, currentUserId }) => {
-  // statusGroup: { user, statuses: [...] }
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress]         = useState(0);
   const progressRef = useRef(null);
@@ -16,12 +15,11 @@ const StatusViewer = ({ statusGroup, onClose, currentUserId }) => {
   const statuses = statusGroup?.statuses || [];
   const current  = statuses[currentIndex];
 
-  // Mark as viewed
   useEffect(() => {
     if (!current) return;
     if (current.user?._id === currentUserId) return;
-    const alreadyViewed = current.viewers?.some(v =>
-      (v.userId?._id || v.userId) === currentUserId
+    const alreadyViewed = current.viewers?.some(
+      (v) => (v.userId?._id || v.userId) === currentUserId
     );
     if (!alreadyViewed) {
       viewStatus(current._id).catch(() => {});
@@ -29,32 +27,24 @@ const StatusViewer = ({ statusGroup, onClose, currentUserId }) => {
     }
   }, [current, currentUserId, socket]);
 
-  // Auto-advance progress bar
   useEffect(() => {
     setProgress(0);
     const start = Date.now();
     progressRef.current = setInterval(() => {
-      const elapsed = Date.now() - start;
-      const pct = Math.min((elapsed / STATUS_DURATION) * 100, 100);
+      const pct = Math.min(((Date.now() - start) / STATUS_DURATION) * 100, 100);
       setProgress(pct);
-      if (pct >= 100) {
-        clearInterval(progressRef.current);
-        goNext();
-      }
+      if (pct >= 100) { clearInterval(progressRef.current); goNext(); }
     }, 50);
     return () => clearInterval(progressRef.current);
   }, [currentIndex]);
 
   const goNext = () => {
-    if (currentIndex < statuses.length - 1) {
-      setCurrentIndex(i => i + 1);
-    } else {
-      onClose();
-    }
+    if (currentIndex < statuses.length - 1) setCurrentIndex((i) => i + 1);
+    else onClose();
   };
 
   const goPrev = () => {
-    if (currentIndex > 0) setCurrentIndex(i => i - 1);
+    if (currentIndex > 0) setCurrentIndex((i) => i - 1);
   };
 
   if (!current) return null;
@@ -62,8 +52,8 @@ const StatusViewer = ({ statusGroup, onClose, currentUserId }) => {
   const user = statusGroup.user;
   const timeAgo = (() => {
     const diff = Math.floor((Date.now() - new Date(current.createdAt)) / 1000);
-    if (diff < 60)    return `${diff}s ago`;
-    if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 60)   return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     return `${Math.floor(diff / 3600)}h ago`;
   })();
 
@@ -76,10 +66,8 @@ const StatusViewer = ({ statusGroup, onClose, currentUserId }) => {
           {statuses.map((_, i) => (
             <div key={i} className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden">
               <div
-                className="h-full bg-white rounded-full transition-none"
-                style={{
-                  width: i < currentIndex ? "100%" : i === currentIndex ? `${progress}%` : "0%",
-                }}
+                className="h-full bg-white rounded-full"
+                style={{ width: i < currentIndex ? "100%" : i === currentIndex ? `${progress}%` : "0%" }}
               />
             </div>
           ))}
@@ -99,10 +87,7 @@ const StatusViewer = ({ statusGroup, onClose, currentUserId }) => {
               <p className="text-white/60 text-xs">{timeAgo}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"
-          >
+          <button onClick={onClose} className="p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -110,20 +95,9 @@ const StatusViewer = ({ statusGroup, onClose, currentUserId }) => {
         {/* Media */}
         <div className="flex-1 flex items-center justify-center bg-black">
           {current.mediaType === "video" ? (
-            <video
-              key={current._id}
-              src={current.media}
-              autoPlay
-              playsInline
-              className="w-full h-full object-contain"
-            />
+            <video key={current._id} src={current.media} autoPlay playsInline className="w-full h-full object-contain" />
           ) : (
-            <img
-              key={current._id}
-              src={current.media}
-              alt={current.caption}
-              className="w-full h-full object-contain"
-            />
+            <img key={current._id} src={current.media} alt={current.caption} className="w-full h-full object-contain" />
           )}
         </div>
 
@@ -136,7 +110,7 @@ const StatusViewer = ({ statusGroup, onClose, currentUserId }) => {
           </div>
         )}
 
-        {/* Viewer count (own status) */}
+        {/* Viewer count */}
         {user?._id === currentUserId && (
           <div className="absolute bottom-4 left-4 flex items-center gap-1.5 text-white/70 text-xs">
             <Eye size={14} />
@@ -145,16 +119,8 @@ const StatusViewer = ({ statusGroup, onClose, currentUserId }) => {
         )}
 
         {/* Tap zones */}
-        <button
-          onClick={goPrev}
-          className="absolute left-0 top-0 bottom-0 w-1/3 z-20"
-          aria-label="Previous"
-        />
-        <button
-          onClick={goNext}
-          className="absolute right-0 top-0 bottom-0 w-1/3 z-20"
-          aria-label="Next"
-        />
+        <button onClick={goPrev} className="absolute left-0 top-0 bottom-0 w-1/3 z-20" aria-label="Previous" />
+        <button onClick={goNext} className="absolute right-0 top-0 bottom-0 w-1/3 z-20" aria-label="Next" />
       </div>
     </div>
   );
