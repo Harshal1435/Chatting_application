@@ -5,7 +5,7 @@ dotenv.config();
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "myverystrongpasswordo32bitlength"; // 32 bytes
 const IV_LENGTH = 16; // AES block size
 
-export const encryptMessage = (text) => {
+export const encrypt = (text) => {
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(ENCRYPTION_KEY), iv);
   let encrypted = cipher.update(text, "utf8", "hex");
@@ -16,7 +16,7 @@ export const encryptMessage = (text) => {
   };
 };
 
-export const decryptMessage = (encryptedData, iv) => {
+export const decrypt = (encryptedData, iv) => {
   const decipher = crypto.createDecipheriv(
     "aes-256-cbc",
     Buffer.from(ENCRYPTION_KEY),

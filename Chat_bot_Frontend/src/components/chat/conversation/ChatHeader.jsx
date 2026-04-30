@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import useConversation from "../../../store/useConversation.js";
 import { useSocketContext } from "../../../context/SocketContext.jsx";
 import { MdCall, MdVideoCall, MdMoreVert, MdArrowBack } from "react-icons/md";
 import { HiUserGroup } from "react-icons/hi";
+import { Search } from "lucide-react";
 import { useCallContext } from "../../../context/CallContext.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
+import SearchModal from "../SearchModal.jsx";
 
 const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png";
 
@@ -15,6 +17,7 @@ function Chatuser() {
   const { startCall, joinGroupCall } = useCallContext();
   const [showMenu, setShowMenu] = useState(false);
   const [showGroupCallMenu, setShowGroupCallMenu] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   if (!selectedConversation) return null;
 
@@ -97,6 +100,16 @@ function Chatuser() {
 
       {/* Right: actions */}
       <div className="flex items-center gap-1">
+        {/* Search button */}
+        <button
+          onClick={() => setShowSearch(true)}
+          className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          aria-label="Search messages"
+          title="Search messages"
+        >
+          <Search size={20} />
+        </button>
+
         {/* 1-1 audio call */}
         <button
           onClick={() => handleCallClick("audio")}
@@ -198,6 +211,9 @@ function Chatuser() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Search Modal */}
+      <SearchModal isOpen={showSearch} onClose={() => setShowSearch(false)} />
     </div>
   );
 }

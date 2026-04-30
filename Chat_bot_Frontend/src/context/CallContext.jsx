@@ -20,33 +20,33 @@ export const CallProvider = ({ children }) => {
   const [authUser] = useAuth();
 
   // ── Refs ──────────────────────────────────────────────────────────────────
-  const peerConnection   = useRef(null);
-  const localStream      = useRef(null);
-  const remoteStream     = useRef(new MediaStream());
-  const pendingICE       = useRef([]);
-  const callTimer        = useRef(null);
-  const remoteUserIdRef  = useRef(null); // always-current ref for closures
-  const activeCallIdRef  = useRef(null);
+  const peerConnection = useRef(null);
+  const localStream = useRef(null);
+  const remoteStream = useRef(new MediaStream());
+  const pendingICE = useRef([]);
+  const callTimer = useRef(null);
+  const remoteUserIdRef = useRef(null); // always-current ref for closures
+  const activeCallIdRef = useRef(null);
 
   // ── Track version counter — incremented when remote tracks arrive ─────────
   // This lets CallModal know to re-attach srcObject without causing video flicker.
   const [remoteTrackVersion, setRemoteTrackVersion] = useState(0);
-  const [incomingCall,   setIncomingCall]   = useState(null);
-  const [activeCall,     setActiveCall]     = useState(false);
-  const [callType,       setCallType]       = useState(null);
-  const [isCaller,       setIsCaller]       = useState(false);
-  const [remoteUserId,   setRemoteUserId]   = useState(null);
-  const [callDuration,   setCallDuration]   = useState(0);
-  const [callStatus,     setCallStatus]     = useState("idle");
-  const [isVideoOn,      setIsVideoOn]      = useState(true);
-  const [isMuted,        setIsMuted]        = useState(false);
-  const [isScreenSharing,setIsScreenSharing]= useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [activeCall, setActiveCall] = useState(false);
+  const [callType, setCallType] = useState(null);
+  const [isCaller, setIsCaller] = useState(false);
+  const [remoteUserId, setRemoteUserId] = useState(null);
+  const [callDuration, setCallDuration] = useState(0);
+  const [callStatus, setCallStatus] = useState("idle");
+  const [isVideoOn, setIsVideoOn] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
 
   // ── Group Call State ──────────────────────────────────────────────────────
-  const [groupCallRoom,  setGroupCallRoom]  = useState(null);  // roomId string
-  const [groupCallType,  setGroupCallType]  = useState(null);
-  const [groupPeers,     setGroupPeers]     = useState({});    // userId → { pc, stream }
-  const [inGroupCall,    setInGroupCall]    = useState(false);
+  const [groupCallRoom, setGroupCallRoom] = useState(null);  // roomId string
+  const [groupCallType, setGroupCallType] = useState(null);
+  const [groupPeers, setGroupPeers] = useState({});    // userId → { pc, stream }
+  const [inGroupCall, setInGroupCall] = useState(false);
   const groupLocalStream = useRef(null);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ export const CallProvider = ({ children }) => {
   const processPendingICE = () => {
     if (!peerConnection.current) return;
     pendingICE.current.forEach((c) => {
-      peerConnection.current.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+      peerConnection.current.addIceCandidate(new RTCIceCandidate(c)).catch(() => { });
     });
     pendingICE.current = [];
   };
@@ -390,7 +390,7 @@ export const CallProvider = ({ children }) => {
     const onIceCandidate = ({ candidate }) => {
       if (!candidate) return;
       if (peerConnection.current?.remoteDescription) {
-        peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+        peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => { });
       } else {
         pendingICE.current.push(candidate);
       }
@@ -439,14 +439,14 @@ export const CallProvider = ({ children }) => {
 
     const onGroupAnswer = async ({ from, answer }) => {
       setGroupPeers((prev) => {
-        prev[from]?.pc?.setRemoteDescription(new RTCSessionDescription(answer)).catch(() => {});
+        prev[from]?.pc?.setRemoteDescription(new RTCSessionDescription(answer)).catch(() => { });
         return prev;
       });
     };
 
     const onGroupIceCandidate = ({ from, candidate }) => {
       setGroupPeers((prev) => {
-        prev[from]?.pc?.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+        prev[from]?.pc?.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => { });
         return prev;
       });
     };
@@ -460,34 +460,34 @@ export const CallProvider = ({ children }) => {
       });
     };
 
-    socket.on("incoming-call",                    onIncomingCall);
-    socket.on("call-accepted",                    onCallAccepted);
-    socket.on("call-rejected",                    onCallRejected);
-    socket.on("call-ended",                       onCallEnded);
-    socket.on("webrtc-ice-candidate",             onIceCandidate);
-    socket.on("call-failed",                      onCallFailed);
+    socket.on("incoming-call", onIncomingCall);
+    socket.on("call-accepted", onCallAccepted);
+    socket.on("call-rejected", onCallRejected);
+    socket.on("call-ended", onCallEnded);
+    socket.on("webrtc-ice-candidate", onIceCandidate);
+    socket.on("call-failed", onCallFailed);
     socket.on("group-call-existing-participants", onGroupExistingParticipants);
-    socket.on("group-call-user-joined",           onGroupUserJoined);
-    socket.on("group-offer",                      onGroupOffer);
-    socket.on("group-answer",                     onGroupAnswer);
-    socket.on("group-ice-candidate",              onGroupIceCandidate);
-    socket.on("group-call-user-left",             onGroupUserLeft);
+    socket.on("group-call-user-joined", onGroupUserJoined);
+    socket.on("group-offer", onGroupOffer);
+    socket.on("group-answer", onGroupAnswer);
+    socket.on("group-ice-candidate", onGroupIceCandidate);
+    socket.on("group-call-user-left", onGroupUserLeft);
 
     return () => {
-      socket.off("incoming-call",                    onIncomingCall);
-      socket.off("call-accepted",                    onCallAccepted);
-      socket.off("call-rejected",                    onCallRejected);
-      socket.off("call-ended",                       onCallEnded);
-      socket.off("webrtc-ice-candidate",             onIceCandidate);
-      socket.off("call-failed",                      onCallFailed);
+      socket.off("incoming-call", onIncomingCall);
+      socket.off("call-accepted", onCallAccepted);
+      socket.off("call-rejected", onCallRejected);
+      socket.off("call-ended", onCallEnded);
+      socket.off("webrtc-ice-candidate", onIceCandidate);
+      socket.off("call-failed", onCallFailed);
       socket.off("group-call-existing-participants", onGroupExistingParticipants);
-      socket.off("group-call-user-joined",           onGroupUserJoined);
-      socket.off("group-offer",                      onGroupOffer);
-      socket.off("group-answer",                     onGroupAnswer);
-      socket.off("group-ice-candidate",              onGroupIceCandidate);
-      socket.off("group-call-user-left",             onGroupUserLeft);
+      socket.off("group-call-user-joined", onGroupUserJoined);
+      socket.off("group-offer", onGroupOffer);
+      socket.off("group-answer", onGroupAnswer);
+      socket.off("group-ice-candidate", onGroupIceCandidate);
+      socket.off("group-call-user-left", onGroupUserLeft);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, authUser?.user?._id]);
 
   // Cleanup on unmount

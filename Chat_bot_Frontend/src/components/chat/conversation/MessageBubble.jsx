@@ -4,6 +4,7 @@ import { useSocketContext } from "../../../context/SocketContext";
 import useSeenMessage from "../../../hooks/useSeenMessage";
 import { decryptText } from "../../../utils/cryptoUtils";
 import { motion } from "framer-motion";
+import MessageActions from "./MessageActions.jsx";
 
 function Message({ message }) {
   const [decryptedText, setDecryptedText] = useState(null);
@@ -42,9 +43,9 @@ function Message({ message }) {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.15 }}
-      className={`flex ${isMe ? "justify-end" : "justify-start"} px-3 py-0.5`}
+      className={`flex ${isMe ? "justify-end" : "justify-start"} px-3 py-0.5 group`}
     >
-      <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} max-w-[75%]`}>
+      <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} max-w-[75%] relative`}>
         <div
           className={`relative px-4 py-2.5 rounded-2xl shadow-sm break-words text-sm leading-relaxed ${
             isMe
@@ -62,6 +63,19 @@ function Message({ message }) {
             decryptedText
           )}
         </div>
+
+        {/* Message Actions - shows on hover */}
+        <MessageActions 
+          message={message}
+          onReply={(msg) => {
+            console.log("Reply to:", msg);
+            // You can implement reply functionality here
+          }}
+          onForward={(msg) => {
+            console.log("Forward:", msg);
+            // You can implement forward functionality here
+          }}
+        />
 
         <div className={`flex items-center gap-1 mt-0.5 px-1 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
           <span className="text-[10px] text-gray-400 dark:text-gray-500">{formattedTime}</span>

@@ -7,8 +7,10 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon server.js"
+    "test": "node test-features.js",
+    "start": "nodemon server.js",
+    "migrate": "node migrations/createIndexes.js",
+    "generate-vapid": "npx web-push generate-vapid-keys"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -24,11 +26,13 @@
     "mongoose": "^8.16.0",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
+    "node-cron": "^3.0.3",
     "nodemon": "^3.1.11",
     "parser": "^0.1.4",
     "path": "^0.12.7",
     "socket.io": "^4.8.1",
     "url": "^0.11.4",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "web-push": "^3.6.7"
   }
 }

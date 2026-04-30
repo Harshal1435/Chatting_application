@@ -7,6 +7,10 @@ import Status from "../models/status.model.js";
 import User from "../models/user.model.js";
 import { v4 as uuidv4 } from "uuid";
 
+// ── Enhanced Features Imports ─────────────────────────────────────────────────
+import { addToOfflineQueue, processOfflineQueue } from "../controller/offlineQueue.controller.js";
+import { sendPushNotification } from "../controller/pushNotification.controller.js";
+
 const app = express();
 const server = http.createServer(app);
 
@@ -53,6 +57,11 @@ io.on("connection", (socket) => {
     userSockets[userId].add(socket.id);
     socket.userId = userId;
     broadcastOnlineUsers();
+
+    // ── Process offline queue when user comes online ──────────────────────────
+    processOfflineQueue(userId).catch((err) => {
+      console.error("Error processing offline queue:", err);
+    });
   }
 
   // Client can request the current online list (e.g. after reconnect)
@@ -73,7 +82,30 @@ io.on("connection", (socket) => {
 
     const recvSocketId = getReceiverSocketId(receiverId);
     const sendSocketId = getReceiverSocketId(senderId);
-    if (recvSocketId) io.to(recvSocketId).emit("newMessage", newMessage);
+    
+    if (recvSocketId) {
+      io.to(recvSocketId).emit("newMessage", newMessage);
+      
+      // ── Send push notification ──────────────────────────────────────────────
+      const sender = await User.findById(senderId).select("fullname profilePic");
+      sendPushNotification(receiverId, {
+        type: "message",
+        title: sender?.fullname || "New Message",
+        body: "You have a new message",
+        icon: sender?.profilePic || "/icon.png",
+        data: {
+          messageId: newMessage._id,
+          senderId,
+          conversationId: newMessage.conversationId,
+        },
+      }).catch((err) => console.error("Push notification error:", err));
+    } else {
+      // ── Add to offline queue if receiver is offline ──────────────────────────
+      addToOfflineQueue(receiverId, newMessage._id, senderId, "normal").catch((err) => {
+        console.error("Error adding to offline queue:", err);
+      });
+    }
+    
     if (sendSocketId) io.to(sendSocketId).emit("message-sent", newMessage);
   });
 

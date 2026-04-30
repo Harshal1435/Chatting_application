@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useAuth } from "./AuthProvider";
 import io from "socket.io-client";
+import toast from "react-hot-toast";
 
 const SocketContext = createContext();
 export const useSocketContext = () => useContext(SocketContext);
@@ -80,6 +81,29 @@ export const SocketProvider = ({ children }) => {
         delete next[from];
         return next;
       });
+    });
+
+    // ── Offline Messages ──────────────────────────────────────────────────
+    newSocket.on("offlineMessage", (message) => {
+      console.log("📬 Received offline message:", message);
+      toast.success("You have new messages!");
+      // The message will be handled by your existing message listeners
+    });
+
+    // ── Message Reactions ─────────────────────────────────────────────────
+    newSocket.on("messageReaction", (data) => {
+      console.log("👍 Message reaction:", data);
+      // You can update your message list here
+    });
+
+    newSocket.on("messageReactionRemoved", (data) => {
+      console.log("👎 Reaction removed:", data);
+    });
+
+    // ── Message Edited ────────────────────────────────────────────────────
+    newSocket.on("messageEdited", (data) => {
+      console.log("✏️ Message edited:", data);
+      // You can update your message list here
     });
 
     return () => {
