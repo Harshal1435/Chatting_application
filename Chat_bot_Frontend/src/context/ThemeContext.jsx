@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 const ThemeContext = createContext();
 
@@ -6,22 +6,27 @@ const ThemeContext = createContext();
 // the class, so we just need to match React state to whatever is on <html>.
 const getInitialTheme = () => {
   try {
-    return localStorage.getItem('theme') || 'light';
+    return localStorage.getItem("theme") || "light";
   } catch (_) {
-    return 'light';
+    return "light";
   }
 };
 
 const applyTheme = (theme) => {
   const root = document.documentElement;
-  root.classList.remove('light', 'dark');
+
+  // Remove both classes first, then add the correct one
+  root.classList.remove("light", "dark");
   root.classList.add(theme);
+
+  // DaisyUI uses data-theme attribute
+  root.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
 };
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(getInitialTheme);
 
-  // Keep <html> class in sync whenever theme changes
+  // Keep <html> class and data-theme in sync whenever theme changes
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
@@ -30,14 +35,14 @@ export const ThemeProvider = ({ children }) => {
   // animation on page load / refresh.
   useEffect(() => {
     const id = requestAnimationFrame(() => {
-      document.documentElement.classList.add('theme-ready');
+      document.documentElement.classList.add("theme-ready");
     });
     return () => cancelAnimationFrame(id);
   }, []);
 
   const toggleTheme = useCallback(() => {
-    const next = theme === 'light' ? 'dark' : 'light';
-    localStorage.setItem('theme', next);
+    const next = theme === "light" ? "dark" : "light";
+    localStorage.setItem("theme", next);
     setTheme(next);
   }, [theme]);
 
@@ -48,4 +53,8 @@ export const ThemeProvider = ({ children }) => {
   );
 };
 
-export const useTheme = () => useContext(ThemeContext);
+export const useTheme = () => {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error("useTheme must be used inside ThemeProvider");
+  return ctx;
+};

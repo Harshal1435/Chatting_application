@@ -20,13 +20,13 @@ class ErrorBoundary extends React.Component {
     if (!this.state.hasError) return this.props.children;
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
         <div className="text-center max-w-sm">
           <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-3xl">⚠️</span>
           </div>
-          <h1 className="text-white text-xl font-semibold mb-2">Something went wrong</h1>
-          <p className="text-slate-400 text-sm mb-6">
+          <h1 className="text-gray-900 dark:text-white text-xl font-semibold mb-2">Something went wrong</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
             {this.state.error?.message || "An unexpected error occurred."}
           </p>
           <button

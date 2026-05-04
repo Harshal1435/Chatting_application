@@ -7,20 +7,23 @@ import { BrowserRouter } from "react-router-dom";
 import { SocketProvider } from "./context/SocketContext.jsx";
 import { CallProvider } from "./context/CallContext.jsx";
 import { StatusProvider } from "./context/StatusContext.jsx";
+import { ThemeProvider } from "./context/ThemeContext.jsx";
 import ErrorBoundary from "./components/ui/ErrorBoundary.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <ErrorBoundary>
     <BrowserRouter>
-      <AuthProvider>
-        <SocketProvider>
-          <StatusProvider>
-            <CallProvider>
-              <App />
-            </CallProvider>
-          </StatusProvider>
-        </SocketProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <StatusProvider>
+              <CallProvider>
+                <App />
+              </CallProvider>
+            </StatusProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   </ErrorBoundary>
 );

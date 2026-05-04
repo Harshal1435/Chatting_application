@@ -1,125 +1,171 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, X, Loader } from "lucide-react";
 import useSearch from "../../hooks/useSearch";
 import { decryptText } from "../../utils/cryptoUtils";
 
 /**
- * Search Modal Component
- * Allows searching messages across all conversations
+ * Search Modal — full dark/light mode support.
  */
 const SearchModal = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [decryptedResults, setDecryptedResults] = useState([]);
   const { loading, results, searchMessages, clearResults } = useSearch();
+  const inputRef = useRef(null);
+  const debounceRef = useRef(null);
 
-  // Debounce search query
+  // Focus input when modal opens
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(query);
-    }, 500);
+    if (isOpen) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [isOpen]);
 
-    return () => clearTimeout(timer);
+  // Debounced search
+  useEffect(() => {
+    clearTimeout(debounceRef.current);
+    if (query.trim().length === 0) {
+      clearResults();
+      setDecryptedResults([]);
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      searchMessages(query.trim());
+    }, 400);
+    return () => clearTimeout(debounceRef.current);
   }, [query]);
 
-  // Perform search when debounced query changes
+  // Decrypt results when they arrive
   useEffect(() => {
-    if (debouncedQuery.trim().length > 0) {
-      searchMessages(debouncedQuery);
-    } else {
-      clearResults();
+    if (!results || results.length === 0) {
+      setDecryptedResults([]);
+      return;
     }
-  }, [debouncedQuery]);
+
+    let cancelled = false;
+
+    Promise.all(
+      results.map(async (msg) => {
+        try {
+          const text = await decryptText(msg.message, msg.iv);
+          return { ...msg, decryptedText: text };
+        } catch {
+          return { ...msg, decryptedText: "[Encrypted message]" };
+        }
+      })
+    ).then((decrypted) => {
+      if (!cancelled) setDecryptedResults(decrypted);
+    });
+
+    return () => { cancelled = true; };
+  }, [results]);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") handleClose(); };
+    if (isOpen) document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isOpen]);
 
   const handleClose = () => {
     setQuery("");
     clearResults();
+    setDecryptedResults([]);
     onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center pt-20">
-      <div className="bg-base-100 rounded-lg shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-        {/* Header */}
-        <div className="p-4 border-b border-base-300 flex items-center gap-3">
-          <Search size={20} className="text-base-content/60" />
+    /* Backdrop */
+    <div
+      className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-16 px-4"
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
+    >
+      {/* Modal */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[75vh] flex flex-col border border-gray-200 dark:border-gray-700 overflow-hidden">
+
+        {/* Search input row */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <Search size={18} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
           <input
+            ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search messages..."
-            className="flex-1 bg-transparent outline-none text-base"
-            autoFocus
+            placeholder="Search messages…"
+            className="flex-1 bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm"
           />
-          {loading && <Loader size={20} className="animate-spin text-primary" />}
-          <button onClick={handleClose} className="btn btn-ghost btn-sm btn-circle">
-            <X size={20} />
+          {loading && (
+            <Loader size={16} className="animate-spin text-blue-500 flex-shrink-0" />
+          )}
+          <button
+            onClick={handleClose}
+            className="p-1.5 rounded-full text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
+          >
+            <X size={16} />
           </button>
         </div>
 
         {/* Results */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {results.length === 0 && query.trim().length > 0 && !loading && (
-            <div className="text-center text-base-content/60 py-8">
-              No messages found for "{query}"
+        <div className="flex-1 overflow-y-auto">
+          {query.trim().length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400 dark:text-gray-500">
+              <Search size={32} className="mb-3 opacity-40" />
+              <p className="text-sm">Type to search your messages</p>
             </div>
           )}
 
-          {results.length === 0 && query.trim().length === 0 && (
-            <div className="text-center text-base-content/60 py-8">
-              Type to search messages...
+          {query.trim().length > 0 && !loading && decryptedResults.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400 dark:text-gray-500">
+              <p className="text-sm">No messages found for <span className="font-medium text-gray-600 dark:text-gray-300">"{query}"</span></p>
             </div>
           )}
 
-          <div className="space-y-3">
-            {results.map((msg) => {
-              let decryptedText = "[Encrypted message]";
-              
-              // Decrypt message asynchronously
-              decryptText(msg.message, msg.iv)
-                .then(text => {
-                  decryptedText = text;
-                })
-                .catch(() => {
-                  decryptedText = "[Unable to decrypt]";
-                });
-
-              return (
-                <div
+          {decryptedResults.length > 0 && (
+            <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+              {decryptedResults.map((msg) => (
+                <li
                   key={msg._id}
-                  className="p-3 bg-base-200 rounded-lg hover:bg-base-300 cursor-pointer transition-colors"
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                 >
-                  <div className="flex items-start gap-3">
-                    <img
-                      src={msg.senderId?.avatar || "/default-avatar.png"}
-                      alt={msg.senderId?.fullname}
-                      className="w-10 h-10 rounded-full"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-sm">
-                          {msg.senderId?.fullname || "Unknown"}
-                        </span>
-                        <span className="text-xs text-base-content/60">
-                          {new Date(msg.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p className="text-sm text-base-content/80 line-clamp-2">
-                        {decryptedText}
-                      </p>
+                  <img
+                    src={
+                      msg.senderId?.avatar ||
+                      "https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png"
+                    }
+                    alt={msg.senderId?.fullname}
+                    className="w-9 h-9 rounded-full object-cover flex-shrink-0 mt-0.5"
+                    onError={(e) => {
+                      e.target.src =
+                        "https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png";
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                        {msg.senderId?.fullname || "Unknown"}
+                      </span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+                        {new Date(msg.createdAt).toLocaleDateString([], {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
                     </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+                      {msg.decryptedText}
+                    </p>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Footer */}
-        {results.length > 0 && (
-          <div className="p-3 border-t border-base-300 text-center text-sm text-base-content/60">
-            Found {results.length} message{results.length !== 1 ? "s" : ""}
+        {decryptedResults.length > 0 && (
+          <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400 dark:text-gray-500 text-center">
+            {decryptedResults.length} result{decryptedResults.length !== 1 ? "s" : ""}
           </div>
         )}
       </div>

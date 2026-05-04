@@ -10,20 +10,21 @@ import useConversation from "./store/useConversation";
 import CallModal from "./components/call/CallModal";
 import IncomingCallModal from "./components/call/IncomingCallModal";
 import GroupCallModal from "./components/call/GroupCallModal";
-import { ThemeProvider } from "./context/ThemeContext";
 import StatusList from "./components/status/StatusList";
 import ProfileView from "./pages/ProfileView";
 import Notifications from "./pages/Notifications";
 import CreatePost from "./pages/CreatePost";
 import PostView from "./pages/PostView";
+import { useTheme } from "./context/ThemeContext";
 
 function App() {
   const [authUser] = useAuth();
   const { selectedConversation } = useConversation();
   const [activeTab, setActiveTab] = useState("chats");
+  const { theme } = useTheme();
 
   return (
-    <ThemeProvider>
+    <>
       <Routes>
         <Route
           path="/"
@@ -70,14 +71,19 @@ function App() {
       <CallModal />
       <IncomingCallModal />
       <GroupCallModal />
+
+      {/* Toaster adapts to current theme */}
       <Toaster
         position="top-center"
         toastOptions={{
-          style: { background: "#1f2937", color: "#f9fafb", borderRadius: "12px" },
+          style:
+            theme === "dark"
+              ? { background: "#1f2937", color: "#f9fafb", borderRadius: "12px" }
+              : { background: "#ffffff", color: "#111827", borderRadius: "12px", border: "1px solid #e5e7eb" },
           duration: 3000,
         }}
       />
-    </ThemeProvider>
+    </>
   );
 }
 

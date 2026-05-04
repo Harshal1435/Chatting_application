@@ -1,34 +1,35 @@
-import React from "react";
 import useConversation from "../../../store/useConversation";
 import { useSocketContext } from "../../../context/SocketContext";
-import { motion } from "framer-motion";
 
-const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png";
+const DEFAULT_AVATAR =
+  "https://cdn.pixabay.com/photo/2019/08/11/18/59/icon-4399701_1280.png";
 
-function User({ user }) {
+/**
+ * UserItem — one row in the chat list.
+ * Shows avatar, online dot, name, status line, and optional Friend badge.
+ */
+function UserItem({ user, isFriend = false }) {
   const { selectedConversation, setSelectedConversation } = useConversation();
-  const isSelected = selectedConversation?._id === user._id;
   const { onlineUsers } = useSocketContext();
-  const isOnline = onlineUsers.includes(user._id);
+
+  const isSelected = selectedConversation?._id === user._id;
+  const isOnline   = onlineUsers.includes(user._id);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.15 }}
+    <div
+      onClick={() => setSelectedConversation(user)}
       className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors duration-150 ${
         isSelected
           ? "bg-blue-50 dark:bg-blue-900/30 border-r-2 border-blue-500"
           : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
       }`}
-      onClick={() => setSelectedConversation(user)}
     >
-      {/* Avatar */}
+      {/* Avatar + online dot */}
       <div className="relative flex-shrink-0">
         <img
           src={user.avatar || DEFAULT_AVATAR}
           alt={user.fullname}
-          className="w-11 h-11 rounded-full object-cover ring-2 ring-transparent"
+          className="w-11 h-11 rounded-full object-cover"
           onError={(e) => { e.target.src = DEFAULT_AVATAR; }}
         />
         {isOnline && (
@@ -36,27 +37,40 @@ function User({ user }) {
         )}
       </div>
 
-      {/* Info */}
+      {/* Name + status */}
       <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-center">
-          <span className={`font-medium text-sm truncate ${
-            isSelected
-              ? "text-blue-700 dark:text-blue-300"
-              : "text-gray-900 dark:text-white"
-          }`}>
+        {/* Row 1: name + Friend badge */}
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`font-medium text-sm truncate ${
+              isSelected
+                ? "text-blue-700 dark:text-blue-300"
+                : "text-gray-900 dark:text-white"
+            }`}
+          >
             {user.fullname}
           </span>
+
+          {isFriend && (
+            <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 leading-none">
+              Friend
+            </span>
+          )}
         </div>
-        <p className={`text-xs truncate mt-0.5 ${
-          isOnline
-            ? "text-green-500 dark:text-green-400"
-            : "text-gray-400 dark:text-gray-500"
-        }`}>
-          {isOnline ? "Online" : user.email}
+
+        {/* Row 2: online / email */}
+        <p
+          className={`text-xs truncate mt-0.5 ${
+            isOnline
+              ? "text-green-500 dark:text-green-400"
+              : "text-gray-400 dark:text-gray-500"
+          }`}
+        >
+          {isOnline ? "● Online" : user.email}
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
-export default User;
+export default UserItem;
